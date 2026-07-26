@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block title %}{{ project.name }} — Official Public Provenance Record{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto space-y-8">
+    <!-- Header Banner -->
+    <div class="bg-slate-950 border border-slate-800 rounded-xl p-8 flex flex-col md:flex-row items-center justify-between gap-6">
+        <div>
+            <div class="flex items-center gap-3 mb-2">
+                <h1 class="text-4xl font-extrabold text-white tracking-tight">{{ project.name }}</h1>
+                <span class="text-xs px-2.5 py-1 rounded font-bold uppercase bg-amber-950 text-amber-300 border border-amber-800">
+                    {{ project.status }}
+                </span>
+            </div>
+            <p class="text-slate-300 text-sm max-w-2xl">{{ project.synopsis|default:"No synopsis provided." }}</p>
+
+            {% if manifest %}
+            <div class="flex items-center gap-6 mt-6 text-xs text-slate-400 font-mono">
+                <div>Verified Contributors: <strong class="text-white">{{ manifest.summary.verified_contributor_count }}</strong></div>
+                <div>Accepted Assets: <strong class="text-emerald-400">{{ manifest.summary.accepted_asset_count }}</strong></div>
+                <div>Departments: <strong class="text-white">{{ manifest.summary.department_count }}</strong></div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="flex flex-col gap-3 min-w-[200px]">
+            {% if manifest %}
+                <a href="{% url 'export_print' project.slug %}" target="_blank" class="w-full text-center bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs py-2 rounded border border-slate-700">
+                    🖨️ Printable Credit Roll
+                </a>
+                <a href="{% url 'export_csv' project.slug %}" class="w-full text-center bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs py-2 rounded border border-slate-700">
+                    📊 Export Credits (CSV)
+                </a>
+                <a href="{% url 'export_json' project.slug %}" class="w-full text-center bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs py-2 rounded border border-slate-700">
+                    📄 Export JSON Manifest
+                </a>
+            {% endif %}
+
+            {% if user.is_authenticated %}
+                <form method="post" action="{% url 'publish_snapshot' project.slug %}">
+                    {% csrf_token %}
+                    <button type="submit" class="w-full bg-amber-600 hover:bg-amber-500 text-white font-semibold text-xs py-2.5 rounded">
+                        📸 Publish Provenance Snapshot
+                    </button>
+                </form>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if snapshot %}
+    <div class="p-3 bg-slate-900 border border-slate-800 rounded text-xs font-mono text-slate-400 flex items-center justify-between">
+        <span>Verified Published Snapshot v{{ snapshot.version_number }} (Published {{ snapshot.published_at|date:"M d, Y H:i" }})</span>
+        <a href="{% url 'manifest_json' project.slug %}" target="_blank" class="text-amber-400 hover:underline">view raw manifest.json &rarr;</a>
+    </div>
+    {% else %}
+    <div class="p-6 bg-slate-800/50 border border-slate-800 rounded-lg text-center text-slate-400 text-sm">
+        No published provenance snapshot available. Authorized directors can publish a new snapshot above.
+    </div>
+    {% endif %}
+
+    <!-- Public Credit Roll Grouped by Department -->
+    {% if manifest %}
+    <div class="bg-slate-900 border border-slate-800 rounded-xl p-8 space-y-8">
+        <h2 class="text-2xl font-bold text-white tracking-tight border-b border-slate-800 pb-4">Official Public Credit Roll</h2>
+
+        {% for dept_name, credits in grouped_credits.items %}
+            <div>
+                <h3 class="text-lg font-bold text-amber-400 mb-4 uppercase tracking-wider">{{ dept_name }}</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {% for c in credits %}
+                        <div class="p-4 bg-slate-950 rounded border border-slate-800 flex justify-between items-start">
+                            <div>
+                                <h4 class="font-bold text-white text-base">
+                                    {% if c.public_handle %}
+                                        <a href="{% url 'public_contributor_profile' c.public_handle %}" class="hover:text-amber-400">
+                                            {{ c.credited_name }}
+                                        </a>
+                                    {% else %}
+                                        {{ c.credited_name }}
+                                    {% endif %}
+                                </h4>
+                                <span class="text-xs text-amber-400 font-semibold block mt-0.5">{{ c.role_name }}</span>
+                                <p class="text-xs text-slate-400 mt-2">{{ c.contribution_summary }}</p>
+                            </div>
+                            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300">
+                                {{ c.basis|upper }}
+                            </span>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+
+    <!-- Accepted Assets Provenance -->
+    <div class="bg-slate-900 border border-slate-800 rounded-xl p-8">
+        <h2 class="text-2xl font-bold text-white tracking-tight mb-6">Accepted Assets Provenance</h2>
+        <div class="space-y-4">
+            {% for asset in manifest.accepted_assets %}
+                <div class="p-4 bg-slate-950 rounded border border-slate-800 flex items-center justify-between">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="font-mono text-emerald-400 font-bold text-sm">{{ asset.task_code }}</span>
+                            <span class="text-xs text-slate-300 font-semibold">{{ asset.task_title }}</span>
+                        </div>
+                        <p class="text-xs text-slate-400 mt-1">
+                            Tool Used: <strong class="text-slate-200">{{ asset.external_tool }}</strong> (Version {{ asset.version_number }})
+                        </p>
+                        <span class="text-[10px] text-slate-500 block mt-1">Credited Contributor: {{ asset.contributor_name }}</span>
+                    </div>
+                    <span class="text-[10px] font-mono text-slate-500">Accepted {{ asset.selected_at|slice:":10" }}</span>
+                </div>
+            {% empty %}
+                <div class="text-xs text-slate-500">No accepted assets recorded in this snapshot.</div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

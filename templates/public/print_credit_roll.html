@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Printable Credit Roll — {{ project.name }}</title>
+    <style>
+        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background: #000; color: #fff; margin: 0; padding: 40px; }
+        .header { text-align: center; margin-bottom: 50px; }
+        .header h1 { text-transform: uppercase; letter-spacing: 4px; font-size: 28px; margin: 0 0 10px 0; }
+        .header p { color: #888; font-size: 12px; letter-spacing: 2px; }
+        .dept { margin-bottom: 40px; text-align: center; }
+        .dept-title { font-size: 14px; text-transform: uppercase; letter-spacing: 3px; color: #d97706; margin-bottom: 15px; border-bottom: 1px solid #333; display: inline-block; padding-bottom: 5px; }
+        .row { display: flex; justify-content: space-between; max-width: 500px; margin: 0 auto 8px auto; font-size: 13px; }
+        .role { color: #aaa; text-align: right; width: 45%; }
+        .name { font-weight: bold; text-align: left; width: 45%; }
+        @media print {
+            body { background: #fff; color: #000; }
+            .role { color: #555; }
+            .dept-title { color: #000; border-bottom-color: #000; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>{{ project.name }}</h1>
+        <p>OFFICIAL PRODUCTION CREDIT ROLL</p>
+    </div>
+
+    {% if manifest %}
+        {% for dept_name, credits in grouped_credits.items %}
+            <div class="dept">
+                <div class="dept-title">{{ dept_name }}</div>
+                {% for c in credits %}
+                    <div class="row">
+                        <div class="role">{{ c.role_name }}</div>
+                        <div class="name">{{ c.credited_name }}</div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endfor %}
+    {% else %}
+        <div style="text-align: center;">No published credit roll.</div>
+    {% endif %}
+</body>
+</html>

@@ -22,6 +22,10 @@ class Project(models.Model):
         default=Status.DEVELOPMENT,
         db_index=True,
     )
+    is_public = models.BooleanField(default=True, db_index=True)
+    poster_image = models.CharField(max_length=500, blank=True)
+    final_film_url = models.URLField(blank=True)
+
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
@@ -96,6 +100,7 @@ class Membership(models.Model):
         default=Status.INVITED,
         db_index=True,
     )
+    public_credit_opt_in = models.BooleanField(default=True, db_index=True)
     available_tools = models.JSONField(default=list, blank=True)
     supported_asset_types = models.JSONField(default=list, blank=True)
     portfolio_links = models.JSONField(default=list, blank=True)

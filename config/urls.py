@@ -8,6 +8,7 @@ from apps.core import views as core_views
 from apps.credits import views as credit_views
 from apps.production import views as prod_views
 from apps.projects import views as proj_views
+from apps.projects import views_public as pub_views
 from apps.submissions import views as sub_views
 
 urlpatterns = [
@@ -17,7 +18,16 @@ urlpatterns = [
     path("register/", core_views.register_view, name="register"),
     path("notifications/", core_views.notifications_view, name="notifications"),
     path("notifications/<int:notif_id>/read/", core_views.mark_notification_read_view, name="mark_notification_read"),
-    # Projects & Room
+    # Public Provenance Layer (Milestone 3)
+    path("p/<slug:slug>/", pub_views.public_project_view, name="public_project"),
+    path("p/<slug:slug>/credits/", pub_views.public_credit_roll_view, name="public_credit_roll"),
+    path("c/<str:handle>/", pub_views.public_contributor_profile_view, name="public_contributor_profile"),
+    path("p/<slug:slug>/export/json/", pub_views.export_json_view, name="export_json"),
+    path("p/<slug:slug>/export/csv/", pub_views.export_csv_view, name="export_csv"),
+    path("p/<slug:slug>/export/print/", pub_views.export_print_view, name="export_print"),
+    path("p/<slug:slug>/manifest.json", pub_views.manifest_json_view, name="manifest_json"),
+    path("projects/<slug:slug>/snapshots/publish/", pub_views.publish_snapshot_view, name="publish_snapshot"),
+    # Internal Governed Projects & Room
     path("projects/new/", proj_views.create_project_view, name="create_project"),
     path("projects/<slug:slug>/", proj_views.project_detail_view, name="project_detail"),
     path("projects/<slug:slug>/room/", proj_views.production_room_view, name="production_room"),

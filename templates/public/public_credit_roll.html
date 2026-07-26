@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block title %}Credit Roll — {{ project.name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-8">
+    <div class="text-center py-8 border-b border-slate-800">
+        <h1 class="text-4xl font-extrabold text-white tracking-widest uppercase mb-2">{{ project.name }}</h1>
+        <p class="text-xs text-amber-500 font-mono tracking-wider">OFFICIAL PUBLIC CREDIT ROLL</p>
+    </div>
+
+    {% if manifest %}
+        <div class="space-y-12 py-4">
+            {% for dept_name, credits in grouped_credits.items %}
+                <div class="text-center">
+                    <h2 class="text-xl font-bold text-amber-400 uppercase tracking-widest mb-6 pb-2 border-b border-slate-800/80 inline-block px-8">
+                        {{ dept_name }}
+                    </h2>
+                    <div class="space-y-4 max-w-xl mx-auto">
+                        {% for c in credits %}
+                            <div class="flex items-center justify-between text-sm py-1">
+                                <span class="text-slate-400 font-medium">{{ c.role_name }}</span>
+                                <span class="font-bold text-white">{{ c.credited_name }}</span>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="text-center text-slate-500 py-12">No published credit roll available.</div>
+    {% endif %}
+</div>
+{% endblock %}

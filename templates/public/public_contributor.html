@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}Contributor Profile — {{ credited_name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-8">
+    <div class="bg-slate-800 border border-slate-700 rounded-xl p-8">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <h1 class="text-3xl font-bold text-white">{{ credited_name }}</h1>
+                <span class="text-sm font-mono text-amber-400 font-semibold">{{ public_handle }}</span>
+            </div>
+            <span class="text-xs px-3 py-1 bg-emerald-950 text-emerald-300 border border-emerald-800 font-bold rounded">
+                Verified Contributor
+            </span>
+        </div>
+
+        {% if portfolio_links %}
+        <div class="mt-4 pt-4 border-t border-slate-700">
+            <h4 class="text-xs font-semibold text-slate-400 mb-2">Verified Portfolio Links</h4>
+            <div class="flex flex-wrap gap-2">
+                {% for url in portfolio_links %}
+                    <a href="{{ url }}" target="_blank" rel="noopener noreferrer" class="text-xs bg-slate-900 hover:bg-slate-700 text-amber-400 px-3 py-1 rounded border border-slate-700">
+                        🔗 {{ url }}
+                    </a>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Verified Contributions Across Public Projects -->
+    <div class="bg-slate-800 border border-slate-700 rounded-xl p-8">
+        <h2 class="text-xl font-bold text-white mb-6">Verified Production Credits</h2>
+        <div class="space-y-4">
+            {% for c in public_contributions %}
+                <div class="p-4 bg-slate-900 rounded border border-slate-700 flex items-center justify-between">
+                    <div>
+                        <a href="{% url 'public_project' c.project_slug %}" class="font-bold text-amber-400 hover:underline text-sm">
+                            {{ c.project_name }}
+                        </a>
+                        <span class="text-xs text-slate-300 font-semibold block mt-0.5">{{ c.role_name }} ({{ c.department_name }})</span>
+                        <p class="text-xs text-slate-400 mt-1">{{ c.summary }}</p>
+                    </div>
+                    <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300">
+                        {{ c.basis|upper }}
+                    </span>
+                </div>
+            {% empty %}
+                <div class="text-xs text-slate-500">No public credit records found for this profile.</div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
