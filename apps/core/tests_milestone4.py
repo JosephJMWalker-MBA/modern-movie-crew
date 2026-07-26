@@ -33,7 +33,7 @@ class Milestone4HardeningTest(TestCase):
         # Malicious external redirect attempt in next parameter must be safely ignored
         response = self.client.post(
             f"{reverse('register')}?next=http://malicious-site.com/steal",
-            {"username": "newuser", "password1": "password123", "password2": "password123"},
+            {"username": "newuser", "password1": "Xy9#mK8$pL2!wQ4z", "password2": "Xy9#mK8$pL2!wQ4z"},
             follow=True,
         )
         self.assertEqual(response.status_code, 200)
