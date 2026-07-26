@@ -79,6 +79,91 @@ Open [http://127.0.0.1:8000](http://127.0.0.1:8000) in your browser.
 
 ---
 
+## Production Deployment: Eco Web Hosting / DirectAdmin
+
+The live application is deployed at `modernmoviecrew.online` using DirectAdmin's Python application selector with Passenger.
+
+### Server Configuration
+
+- Python: `3.11.11`
+- Application root: `/home/u100953/modernmoviecrew`
+- Virtual environment: `/home/u100953/virtualenv/modernmoviecrew/3.11`
+- Startup file: `passenger_wsgi.py`
+- WSGI entry point: `application`
+- Django settings module: `config.settings`
+
+`passenger_wsgi.py` on the server must contain:
+
+```python
+import os
+import sys
+
+APP_ROOT = "/home/u100953/modernmoviecrew"
+
+if APP_ROOT not in sys.path:
+    sys.path.insert(0, APP_ROOT)
+
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
+
+from config.wsgi import application
+```
+
+This file is tracked in Git and should remain identical between GitHub and the server.
+
+### Production Environment Values
+
+Configure these exact variable names in DirectAdmin's Python application settings:
+
+```text
+DEBUG=False
+ALLOWED_HOSTS=modernmoviecrew.online,www.modernmoviecrew.online
+CSRF_TRUSTED_ORIGINS=https://modernmoviecrew.online,https://www.modernmoviecrew.online
+SECRET_KEY=<strong generated secret>
+```
+
+Generate a production secret locally with:
+
+```bash
+python3 -c "import secrets; print(secrets.token_urlsafe(64))"
+```
+
+Do not commit the generated secret. Store it only in the hosting environment.
+
+### Current Database Decision
+
+The production deployment currently uses SQLite because the existing `DATABASE_URL` parser configures PostgreSQL unconditionally. DirectAdmin's MariaDB credentials (`DB_NAME`, `DB_USER`, and related values) are not read by the current settings module.
+
+Until MariaDB support is implemented in code:
+
+- Leave `DATABASE_URL` unset in DirectAdmin.
+- Back up the production SQLite database regularly.
+- Do not set a MariaDB connection string that the current PostgreSQL-only parser will misinterpret.
+
+### Deploy and Verify
+
+```bash
+source /home/u100953/virtualenv/modernmoviecrew/3.11/bin/activate
+cd /home/u100953/modernmoviecrew
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py collectstatic --noinput
+python manage.py check --deploy
+```
+
+A correct production check reports:
+
+```text
+System check identified no issues (0 silenced).
+```
+
+Restart the Python application in DirectAdmin after changing code or environment variables.
+
+### TLS / ACME
+
+DirectAdmin ACME is enabled with Let's Encrypt. The certificate request may remain pending while DNS changes propagate. The application already serves over HTTPS, but the DirectAdmin certificate list should eventually show an issued, automatically renewable certificate for the root domain and intended hostnames.
+
+---
+
 ## Production Readiness & Security Controls
 
 - **Health Check Endpoint**: `GET /health/` returns `{"status": "healthy", "database": "connected"}`.
@@ -122,6 +207,8 @@ pg_restore -U <user> -h <host> -d <database_name> -v mmc_backup_YYYYMMDD.dump
 - [x] All database migrations applied (`python manage.py migrate`).
 - [x] Django system deployment check passed (`python manage.py check --deploy`).
 - [x] Complete automated test suite passed (`python manage.py test`).
-- [x] Environment variables configured for production (`SECRET_KEY`, `DEBUG=False`, `ALLOWED_HOSTS`, `DATABASE_URL`).
+- [x] Environment variables configured for production (`SECRET_KEY`, `DEBUG=False`, `ALLOWED_HOSTS`).
 - [x] Static files collected (`python manage.py collectstatic`).
 - [x] Health check verified (`/health/`).
+- [ ] DirectAdmin-managed Let's Encrypt certificate visible and renewing automatically.
+- [ ] Production database migrated from SQLite to a supported server database before broader concurrency.
