@@ -1,13 +1,13 @@
 from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.forms import UserCreationForm
 from django.core.paginator import Paginator
 from django.db import connection
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
 
+from apps.accounts.forms import CustomUserCreationForm
 from apps.core.models import AuditEvent, Notification
 from apps.projects.models import Membership, Project
 
@@ -41,7 +41,7 @@ def dashboard_view(request):
 def register_view(request):
     next_url = request.GET.get("next", "")
     if request.method == "POST":
-        form = UserCreationForm(request.POST)
+        form = CustomUserCreationForm(request.POST)
         if form.is_valid():
             user = form.save()
             user.display_name = user.username
@@ -53,7 +53,7 @@ def register_view(request):
                 return redirect(next_url)
             return redirect("dashboard")
     else:
-        form = UserCreationForm()
+        form = CustomUserCreationForm()
     return render(request, "registration/register.html", {"form": form})
 
 
