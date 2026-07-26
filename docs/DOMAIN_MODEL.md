@@ -12,7 +12,9 @@ Project
 ├── RoleAssignment
 ├── ScriptDocument (Project Script Master)
 │   └── ScriptVersion (Immutable Script Revision)
-│       └── ScriptSegment (Acts, Scenes, Action, Dialogue, Headings)
+│       ├── ScriptSegment (Acts, Scenes, Action, Dialogue, Headings)
+│       └── ScriptCharacterSuggestion (AI-assisted discovery candidate)
+│           └── ScriptCharacterMention (Traceable link to ScriptSegment)
 ├── Character (Project-Scoped Character Entity)
 │   ├── CharacterIdentityVersion (Immutable facial & structural identity)
 │   ├── CharacterReferenceAsset (Turnaround sheets, model configs, reference frames)
@@ -64,6 +66,8 @@ Project
 - `ScriptDocument`: Primary script master for a project (`project`, `title`, `description`, `created_by`, `created_at`).
 - `ScriptVersion`: Immutable versioned script import (`script_document`, `version_number`, `raw_text`, `parsed_at`, `created_by`, `created_at`).
 - `ScriptSegment`: Parsed text segment (`script_version`, `segment_number`, `segment_type`: `SCENE_HEADING`, `ACTION`, `DIALOGUE`, `PARENTHETICAL`, `TRANSITION`, `PARAGRAPH`, `text_content`, `scene`, `character`).
+- `ScriptCharacterSuggestion`: Deterministic character candidate derived from script text (`script_version`, `name`, `raw_name`, `status`: `SUGGESTED`, `CONFIRMED`, `MERGED`, `REJECTED`, `confirmed_character`, `occurrence_count`).
+- `ScriptCharacterMention`: Traceable link from a suggestion or canonical character to an exact `ScriptSegment` (`suggestion`, `segment`, `character`).
 - `TaskScriptLink`: Immutable traceability link linking a `ProductionTask` to its source script range (`task`, `script_version`, `start_segment`, `end_segment`, `segment_text_snapshot`, `created_at`).
 
 ### 4. Claims, Submissions & Immutability

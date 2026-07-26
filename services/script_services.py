@@ -15,10 +15,11 @@ from apps.production.models import (
     TaskScriptLink,
 )
 from services.boundary_services import verify_membership_in_project
+from services.character_discovery_services import analyze_script_for_character_suggestions
 from services.production_services import create_production_task_with_packet
 
 SCENE_HEADING_REGEX = re.compile(r"^(INT\.|EXT\.|INT/EXT\.|EXT/INT\.|INT\s|EXT\s|SCENE\s)", re.IGNORECASE)
-CHARACTER_HEADING_REGEX = re.compile(r"^[A-Z0-9\s\'\.\-]{2,40}$")
+CHARACTER_HEADING_REGEX = re.compile(r"^[A-Z0-9\s\'\.\-\(\)]{2,40}$")
 
 
 def parse_script_text_to_segments(*, script_version: ScriptVersion, project, raw_text: str):
@@ -136,6 +137,9 @@ def import_script_document(
     )
 
     parse_script_text_to_segments(script_version=version, project=project, raw_text=raw_text)
+
+    # Run deterministic Python character suggestion analysis
+    analyze_script_for_character_suggestions(script_version=version)
 
     AuditEvent.objects.create(
         project=project,

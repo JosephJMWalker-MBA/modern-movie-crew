@@ -425,7 +425,7 @@ class CharacterTaskLink(models.Model):
         return f"{self.task.code} -> Character: {self.character.name}"
 
 
-# SCRIPT IMPORT & SCRIPT-FIRST PRODUCTION PLANNING ENTITIES (Issue #3)
+# SCRIPT IMPORT & SCRIPT-FIRST PRODUCTION PLANNING ENTITIES
 
 class ScriptDocument(models.Model):
     project = models.ForeignKey(
@@ -554,7 +554,6 @@ class TaskScriptLink(models.Model):
             raise ValidationError("Task and ScriptVersion must belong to the same project.")
 
     def has_text_drifted(self) -> bool:
-        """Returns True if the current segment text content in the script version differs from the snapshot taken when the task was created."""
         segments = ScriptSegment.objects.filter(
             script_version=self.script_version,
             segment_number__gte=self.start_segment.segment_number,
@@ -569,3 +568,77 @@ class TaskScriptLink(models.Model):
 
     def __str__(self):
         return f"{self.task.code} -> Script v{self.script_version.version_number} Segments #{self.start_segment.segment_number}-{self.end_segment.segment_number}"
+
+
+# CHARACTER DISCOVERY & MENTION ENTITIES (Issue #6)
+
+class ScriptCharacterSuggestion(models.Model):
+    class Status(models.TextChoices):
+        SUGGESTED = "suggested", "Suggested"
+        CONFIRMED = "confirmed", "Confirmed"
+        MERGED = "merged", "Merged"
+        REJECTED = "rejected", "Rejected"
+
+    script_version = models.ForeignKey(
+        ScriptVersion,
+        related_name="character_suggestions",
+        on_delete=models.CASCADE,
+    )
+    name = models.CharField(max_length=120)  # Normalized name
+    raw_name = models.CharField(max_length=120)  # Original name found
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.SUGGESTED,
+        db_index=True,
+    )
+    confirmed_character = models.ForeignKey(
+        "characters.Character",
+        null=True,
+        blank=True,
+        related_name="script_suggestions",
+        on_delete=models.SET_NULL,
+    )
+    occurrence_count = models.PositiveIntegerField(default=1)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("script_version", "name")
+        ordering = ("-occurrence_count", "name")
+
+    def __str__(self):
+        return f"Suggestion: {self.name} ({self.status}) [{self.occurrence_count}x]"
+
+
+class ScriptCharacterMention(models.Model):
+    suggestion = models.ForeignKey(
+        ScriptCharacterSuggestion,
+        related_name="mentions",
+        on_delete=models.CASCADE,
+    )
+    segment = models.ForeignKey(
+        ScriptSegment,
+        related_name="character_mentions",
+        on_delete=models.CASCADE,
+    )
+    character = models.ForeignKey(
+        "characters.Character",
+        null=True,
+        blank=True,
+        related_name="script_mentions",
+        on_delete=models.SET_NULL,
+    )
+
+    class Meta:
+        unique_together = ("suggestion", "segment")
+
+    def clean(self):
+        if self.suggestion.script_version_id != self.segment.script_version_id:
+            raise ValidationError("Suggestion and Segment must belong to the same ScriptVersion.")
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        return super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"Mention: {self.suggestion.name} at Segment #{self.segment.segment_number}"

@@ -46,10 +46,11 @@ urlpatterns = [
     path("invites/<str:token_str>/accept/", proj_views.accept_invite_view, name="accept_invite"),
     path("projects/<slug:slug>/spare-gen/", proj_views.spare_gen_view, name="spare_gen"),
     path("projects/<slug:slug>/activity/", core_views.activity_feed_view, name="activity_feed"),
-    # Script Workspace & Import (Issue #3)
+    # Script Workspace, Import & Production Planning Matrix (Issue #3 & Issue #6)
     path("projects/<slug:slug>/script/", script_views.script_workspace_view, name="script_workspace"),
     path("projects/<slug:slug>/script/import/", script_views.script_import_view, name="script_import"),
     path("projects/<slug:slug>/script/create-task/", script_views.create_task_from_segment_view, name="create_task_from_segment"),
+    path("projects/<slug:slug>/script/matrix/", script_views.production_matrix_view, name="production_matrix"),
     # Characters
     path("projects/<slug:slug>/characters/", char_views.character_list_view, name="character_list"),
     path("projects/<slug:slug>/characters/new/", char_views.create_character_view, name="create_character"),
@@ -62,10 +63,10 @@ urlpatterns = [
     path("projects/<slug:slug>/tasks/<int:task_id>/open/", prod_views.open_task_view, name="open_task"),
     path("projects/<slug:slug>/tasks/<int:task_id>/claim/", prod_views.claim_task_view, name="claim_task"),
     # Submissions & Reviews
-    path("projects/<slug:slug>/tasks/<int:task_id>/upload/", sub_views.upload_v1_view, name="upload_v1"),
     path("projects/<slug:slug>/versions/<int:version_id>/dept-review/", sub_views.department_review_view, name="department_review"),
     path("projects/<slug:slug>/versions/<int:version_id>/revision/", sub_views.director_revision_view, name="director_revision"),
     path("projects/<slug:slug>/submissions/<int:submission_id>/upload-v2/", sub_views.upload_v2_view, name="upload_v2"),
+    path("projects/<slug:slug>/tasks/<int:task_id>/upload/", sub_views.upload_v1_view, name="upload_v1"),
     path("projects/<slug:slug>/versions/<int:version_id>/accept/", sub_views.director_accept_view, name="director_accept"),
     # Credits & Ledger
     path("projects/<slug:slug>/credits/", credit_views.credit_ledger_view, name="credit_ledger"),

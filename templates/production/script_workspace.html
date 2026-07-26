@@ -17,9 +17,14 @@
                 {% endif %}
             </p>
         </div>
-        <a href="{% url 'script_import' project.slug %}" class="bg-amber-600 hover:bg-amber-500 text-white font-semibold text-xs px-4 py-2 rounded">
-            {% if script_doc %}Re-Import / Upload Revision{% else %}Import Script Document{% endif %}
-        </a>
+        <div class="flex items-center gap-3">
+            <a href="{% url 'production_matrix' project.slug %}" class="bg-amber-600 hover:bg-amber-500 text-white font-semibold text-xs px-4 py-2 rounded">
+                Production Planning Matrix
+            </a>
+            <a href="{% url 'script_import' project.slug %}" class="bg-slate-700 hover:bg-slate-600 text-white font-semibold text-xs px-4 py-2 rounded">
+                {% if script_doc %}Re-Import / Upload Revision{% else %}Import Script Document{% endif %}
+            </a>
+        </div>
     </div>
 
     {% if not latest_version %}
@@ -64,61 +69,123 @@
                 {% endfor %}
             </div>
 
-            <!-- Right Col: Task Creation from Selection Panel -->
-            <div class="bg-slate-800 border border-slate-700 rounded-lg p-6 h-fit sticky top-6 font-sans">
-                <h3 class="font-bold text-white text-base mb-1">Create Task from Passage</h3>
-                <p class="text-xs text-slate-400 mb-4">Select start and end segment numbers to generate a linked production task.</p>
+            <!-- Right Col: Sidebar Panels -->
+            <div class="space-y-6 font-sans">
+                <!-- Character Discovery & Suggestions Panel (Issue #6) -->
+                <div class="bg-slate-800 border border-slate-700 rounded-lg p-5">
+                    <h3 class="font-bold text-white text-sm mb-1">Character Suggestions</h3>
+                    <p class="text-xs text-slate-400 mb-3">AI-discovered candidate character names from imported script.</p>
 
-                <form method="post" action="{% url 'create_task_from_segment' project.slug %}" class="space-y-4">
-                    {% csrf_token %}
-                    <input type="hidden" name="version_id" value="{{ latest_version.id }}">
+                    <div class="space-y-3 max-h-72 overflow-y-auto pr-1">
+                        {% for sug in suggestions %}
+                            <div class="p-3 bg-slate-900 border border-slate-700 rounded text-xs space-y-2">
+                                <div class="flex items-center justify-between">
+                                    <span class="font-bold text-white">{{ sug.name }}</span>
+                                    <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold 
+                                        {% if sug.status == 'confirmed' %}bg-emerald-950 text-emerald-300 border border-emerald-700
+                                        {% elif sug.status == 'merged' %}bg-purple-950 text-purple-300 border border-purple-700
+                                        {% elif sug.status == 'rejected' %}bg-red-950 text-red-300 border border-red-800
+                                        {% else %}bg-amber-950 text-amber-300 border border-amber-800{% endif %}">
+                                        {{ sug.get_status_display }} ({{ sug.occurrence_count }}x)
+                                    </span>
+                                </div>
 
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="block text-xs font-medium text-slate-300 mb-1">Start Segment #</label>
-                            <input type="number" name="start_segment_id" min="1" max="{{ segments|length }}" required class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-white text-xs">
+                                {% if sug.status == 'suggested' %}
+                                    <div class="flex flex-col gap-1.5 pt-1 border-t border-slate-800">
+                                        <form method="post" class="flex gap-1.5">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="confirm_suggestion">
+                                            <input type="hidden" name="suggestion_id" value="{{ sug.id }}">
+                                            <input type="text" name="custom_name" value="{{ sug.name }}" class="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-white text-[11px]">
+                                            <button type="submit" class="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-2 py-1 rounded text-[10px]">Confirm</button>
+                                        </form>
+
+                                        <form method="post" class="flex gap-1.5">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="merge_suggestion">
+                                            <input type="hidden" name="suggestion_id" value="{{ sug.id }}">
+                                            <select name="target_character_id" required class="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-white text-[11px]">
+                                                <option value="">Merge into...</option>
+                                                {% for c in characters %}
+                                                    <option value="{{ c.id }}">{{ c.name }}</option>
+                                                {% endfor %}
+                                            </select>
+                                            <button type="submit" class="bg-purple-600 hover:bg-purple-500 text-white font-semibold px-2 py-1 rounded text-[10px]">Merge</button>
+                                        </form>
+
+                                        <form method="post">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="reject_suggestion">
+                                            <input type="hidden" name="suggestion_id" value="{{ sug.id }}">
+                                            <button type="submit" class="w-full text-slate-400 hover:text-red-400 text-[10px] text-right">Reject false positive</button>
+                                        </form>
+                                    </div>
+                                {% elif sug.confirmed_character %}
+                                    <div class="text-[10px] text-slate-400">Linked to Character: <span class="text-slate-200 font-semibold">{{ sug.confirmed_character.name }}</span></div>
+                                {% endif %}
+                            </div>
+                        {% empty %}
+                            <div class="text-xs text-slate-500 text-center py-4">No character suggestions detected.</div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Create Task Panel -->
+                <div class="bg-slate-800 border border-slate-700 rounded-lg p-5">
+                    <h3 class="font-bold text-white text-sm mb-1">Create Task from Passage</h3>
+                    <p class="text-xs text-slate-400 mb-4">Select start and end segment numbers to generate a linked production task.</p>
+
+                    <form method="post" action="{% url 'create_task_from_segment' project.slug %}" class="space-y-3">
+                        {% csrf_token %}
+                        <input type="hidden" name="version_id" value="{{ latest_version.id }}">
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-medium text-slate-300 mb-1">Start Segment #</label>
+                                <input type="number" name="start_segment_id" min="1" max="{{ segments|length }}" required class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-white text-xs">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-300 mb-1">End Segment #</label>
+                                <input type="number" name="end_segment_id" min="1" max="{{ segments|length }}" required class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-white text-xs">
+                            </div>
                         </div>
+
                         <div>
-                            <label class="block text-xs font-medium text-slate-300 mb-1">End Segment #</label>
-                            <input type="number" name="end_segment_id" min="1" max="{{ segments|length }}" required class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-white text-xs">
+                            <label class="block text-xs font-medium text-slate-300 mb-1">Task Code</label>
+                            <input type="text" name="code" placeholder="TASK-SCRIPT-01" required class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-white text-xs">
                         </div>
-                    </div>
 
-                    <div>
-                        <label class="block text-xs font-medium text-slate-300 mb-1">Task Code</label>
-                        <input type="text" name="code" placeholder="TASK-SCRIPT-01" required class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-white text-xs">
-                    </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-300 mb-1">Task Title</label>
+                            <input type="text" name="title" placeholder="Generate dialogue performance" required class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-white text-xs">
+                        </div>
 
-                    <div>
-                        <label class="block text-xs font-medium text-slate-300 mb-1">Task Title</label>
-                        <input type="text" name="title" placeholder="Generate dialogue performance" required class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-white text-xs">
-                    </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-300 mb-1">Task Type</label>
+                            <select name="task_type" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-white text-xs">
+                                <option value="video">Video Generation</option>
+                                <option value="voice">Voice / Audio</option>
+                                <option value="wardrobe">Costume / Wardrobe</option>
+                                <option value="concept">Art Concept</option>
+                                <option value="continuity">Continuity Check</option>
+                            </select>
+                        </div>
 
-                    <div>
-                        <label class="block text-xs font-medium text-slate-300 mb-1">Task Type</label>
-                        <select name="task_type" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-white text-xs">
-                            <option value="video">Video Generation</option>
-                            <option value="voice">Voice / Audio</option>
-                            <option value="wardrobe">Costume / Wardrobe</option>
-                            <option value="concept">Art Concept</option>
-                            <option value="continuity">Continuity Check</option>
-                        </select>
-                    </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-300 mb-1">Link Character (Optional)</label>
+                            <select name="character_id" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-white text-xs">
+                                <option value="">-- None --</option>
+                                {% for c in characters %}
+                                    <option value="{{ c.id }}">{{ c.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
 
-                    <div>
-                        <label class="block text-xs font-medium text-slate-300 mb-1">Link Character (Optional)</label>
-                        <select name="character_id" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-white text-xs">
-                            <option value="">-- None --</option>
-                            {% for c in characters %}
-                                <option value="{{ c.id }}">{{ c.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-
-                    <button type="submit" class="w-full bg-amber-600 hover:bg-amber-500 text-white font-semibold py-2 rounded text-xs">
-                        Create Linked Production Task
-                    </button>
-                </form>
+                        <button type="submit" class="w-full bg-amber-600 hover:bg-amber-500 text-white font-semibold py-2 rounded text-xs">
+                            Create Linked Production Task
+                        </button>
+                    </form>
+                </div>
             </div>
         </div>
     {% endif %}
