@@ -127,6 +127,12 @@ class ProjectProvenanceSnapshot(models.Model):
     class Meta:
         unique_together = ("project", "version_number")
         ordering = ("-version_number",)
+        constraints = [
+            models.UniqueConstraint(
+                fields=["project", "version_number"],
+                name="unique_snapshot_version_per_project",
+            ),
+        ]
 
     def clean(self):
         if self.pk:
