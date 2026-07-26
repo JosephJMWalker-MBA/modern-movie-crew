@@ -2,19 +2,13 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 
-from apps.characters.models import Character, CharacterIdentityVersion
-from apps.production.models import (
-    Act,
-    CharacterTaskLink,
-    PacketSection,
-    ProductionTask,
-    Scene,
-    Sequence,
-)
-from apps.projects.models import Department, Membership, Project
+from apps.characters.models import Character
+from apps.production.models import PacketSection, ProductionTask
+from apps.projects.models import Membership, Project
 from services.production_services import (
     approve_packet_section,
     claim_production_task,
+    create_production_task_with_packet,
     transition_task_to_open,
 )
 
@@ -34,42 +28,31 @@ def project_board_view(request, slug):
 @login_required
 def create_task_view(request, slug):
     project = get_object_or_404(Project, slug=slug)
+    membership = get_object_or_404(Membership, project=project, user=request.user)
+
     if request.method == "POST":
         code = request.POST.get("code")
         title = request.POST.get("title")
         task_type = request.POST.get("task_type", "video")
         character_id = request.POST.get("character_id")
 
-        # Ensure Act 1 -> Sequence 1 -> Scene 1 exists
-        act, _ = Act.objects.get_or_create(project=project, act_number=1, defaults={"title": "Act I"})
-        seq, _ = Sequence.objects.get_or_create(act=act, sequence_number=1, defaults={"title": "Sequence A"})
-        scene, _ = Scene.objects.get_or_create(sequence=seq, scene_number=1, defaults={"title": "Scene 1"})
-
-        task = ProductionTask.objects.create(
-            project=project, scene=scene, code=code, title=title, task_type=task_type
-        )
-
-        # Create story packet section
-        art_dept = project.departments.filter(name="Art Department").first() or project.departments.first()
-        PacketSection.objects.create(
-            task=task,
-            department=art_dept,
-            section_type=PacketSection.SectionType.STORY,
-            content=f"Story prompt for {title}",
-            required=True,
-        )
-
-        # Link character if selected
+        character = None
         if character_id:
             character = get_object_or_404(Character, pk=character_id, project=project)
-            approved_id = character.identity_versions.filter(status="approved").first()
-            if approved_id:
-                CharacterTaskLink.objects.create(
-                    task=task, character=character, character_identity_version=approved_id
-                )
 
-        messages.success(request, f"Task '{code}' created!")
-        return redirect("task_detail", slug=project.slug, task_id=task.id)
+        try:
+            task = create_production_task_with_packet(
+                project=project,
+                actor_membership=membership,
+                code=code,
+                title=title,
+                task_type=task_type,
+                character=character,
+            )
+            messages.success(request, f"Task '{code}' created!")
+            return redirect("task_detail", slug=project.slug, task_id=task.id)
+        except Exception as e:
+            messages.error(request, str(e))
 
     characters = project.characters.all()
     return render(request, "production/create_task.html", {"project": project, "characters": characters})
@@ -104,6 +87,10 @@ def approve_section_view(request, slug, section_id):
     section = get_object_or_404(PacketSection, pk=section_id, task__project=project)
     membership = get_object_or_404(Membership, project=project, user=request.user)
     assignment = membership.role_assignments.filter(ends_at__isnull=True).first()
+
+    if not assignment:
+        messages.error(request, "Active role assignment required to approve packet sections.")
+        return redirect("task_detail", slug=project.slug, task_id=section.task.id)
 
     try:
         approve_packet_section(packet_section=section, reviewer_assignment=assignment)

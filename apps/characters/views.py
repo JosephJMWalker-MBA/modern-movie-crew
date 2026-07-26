@@ -3,10 +3,10 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 
 from apps.characters.models import Character, CharacterIdentityVersion
-from apps.projects.models import Membership, Project, RoleAssignment
+from apps.projects.models import Membership, Project
 from services.character_services import (
     approve_character_identity,
-    create_character_identity_version,
+    create_character_with_identity,
 )
 
 
@@ -31,19 +31,18 @@ def create_character_view(request, slug):
         description = request.POST.get("description", "")
         facial_notes = request.POST.get("facial_notes", "")
 
-        character = Character.objects.create(
-            project=project, name=name, description=description
-        )
-
-        create_character_identity_version(
-            character=character,
-            version_number=1,
-            facial_structure_notes=facial_notes,
-            creator_membership=membership,
-        )
-
-        messages.success(request, f"Character '{name}' created with Identity v1!")
-        return redirect("character_list", slug=project.slug)
+        try:
+            create_character_with_identity(
+                project=project,
+                creator_membership=membership,
+                name=name,
+                description=description,
+                facial_notes=facial_notes,
+            )
+            messages.success(request, f"Character '{name}' created with Identity v1!")
+            return redirect("character_list", slug=project.slug)
+        except Exception as e:
+            messages.error(request, str(e))
 
     return render(request, "characters/create_character.html", {"project": project})
 

@@ -109,7 +109,7 @@ class ProductionTask(models.Model):
                 "Scene and ProductionTask must belong to the same project."
             )
 
-        if self.status in [self.Status.READY, self.Status.OPEN]:
+        if self.pk and self.status in [self.Status.READY, self.Status.OPEN]:
             # Verify packet sections
             unapproved_required_sections = self.packet_sections.filter(
                 required=True

@@ -3,11 +3,16 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.utils import timezone
 
+from apps.characters.models import Character
 from apps.core.models import AuditEvent
 from apps.credits.models import CreditEntry
 from apps.production.models import (
+    Act,
+    CharacterTaskLink,
     PacketSection,
     ProductionTask,
+    Scene,
+    Sequence,
     TaskClaim,
 )
 from services.boundary_services import (
@@ -15,6 +20,55 @@ from services.boundary_services import (
     verify_department_match,
     verify_membership_in_project,
 )
+
+
+@transaction.atomic
+def create_production_task_with_packet(
+    *,
+    project,
+    actor_membership,
+    code: str,
+    title: str,
+    task_type: str = "video",
+    character: Character = None,
+) -> ProductionTask:
+    verify_membership_in_project(membership=actor_membership, project=project)
+
+    # Ensure default Act -> Sequence -> Scene exists
+    act, _ = Act.objects.get_or_create(project=project, act_number=1, defaults={"title": "Act I"})
+    seq, _ = Sequence.objects.get_or_create(act=act, sequence_number=1, defaults={"title": "Sequence A"})
+    scene, _ = Scene.objects.get_or_create(sequence=seq, scene_number=1, defaults={"title": "Scene 1"})
+
+    task = ProductionTask.objects.create(
+        project=project, scene=scene, code=code, title=title, task_type=task_type
+    )
+
+    art_dept = project.departments.filter(name="Art Department").first() or project.departments.first()
+    PacketSection.objects.create(
+        task=task,
+        department=art_dept,
+        section_type=PacketSection.SectionType.STORY,
+        content=f"Story prompt for {title}",
+        required=True,
+    )
+
+    if character:
+        approved_id = character.identity_versions.filter(status="approved").first()
+        if approved_id:
+            CharacterTaskLink.objects.create(
+                task=task, character=character, character_identity_version=approved_id
+            )
+
+    AuditEvent.objects.create(
+        project=project,
+        actor=actor_membership,
+        event_type="production_task_created",
+        object_type="production_task",
+        object_id=str(task.id),
+        metadata={"task_code": code},
+    )
+
+    return task
 
 
 @transaction.atomic

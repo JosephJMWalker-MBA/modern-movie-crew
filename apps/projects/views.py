@@ -1,16 +1,17 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404, redirect, render
-from django.utils.text import slugify
 
 from apps.projects.models import (
     Department,
     Membership,
     ProductionRole,
     Project,
-    ProjectTermsVersion,
-    RoleAssignment,
 )
+from services.project_services import add_crew_member_with_role, create_project_with_defaults
+
+User = get_user_model()
 
 
 @login_required
@@ -18,47 +19,15 @@ def create_project_view(request):
     if request.method == "POST":
         name = request.POST.get("name")
         synopsis = request.POST.get("synopsis", "")
-        slug = slugify(name)
 
-        project = Project.objects.create(
-            name=name, slug=slug, synopsis=synopsis, created_by=request.user
-        )
-
-        # Create initial ProjectTermsVersion
-        terms = ProjectTermsVersion.objects.create(
-            project=project,
-            version_number=1,
-            terms_text="Standard Modern Movie Crew Project Terms v1",
-        )
-
-        # Create Director & Contributor memberships/departments
-        art_dept = Department.objects.create(project=project, name="Art Department", sort_order=1)
-        costume_dept = Department.objects.create(project=project, name="Costume Department", sort_order=2)
-        dir_dept = Department.objects.create(project=project, name="Direction Department", sort_order=0)
-
-        director_role = ProductionRole.objects.create(
-            project=project,
-            department=dir_dept,
-            name="Director",
-            can_assign_tasks=True,
-            can_approve_department_work=True,
-            can_accept_final_assets=True,
-            can_manage_credits=True,
-        )
-
-        membership = Membership.objects.create(
-            project=project,
-            user=request.user,
-            credited_name=request.user.display_name or request.user.username,
-            status=Membership.Status.ACTIVE,
-        )
-
-        RoleAssignment.objects.create(
-            membership=membership, role=director_role, is_department_head=True
-        )
-
-        messages.success(request, f"Project '{name}' created successfully!")
-        return redirect("project_detail", slug=project.slug)
+        try:
+            project = create_project_with_defaults(
+                creator_user=request.user, name=name, synopsis=synopsis
+            )
+            messages.success(request, f"Project '{name}' created successfully!")
+            return redirect("project_detail", slug=project.slug)
+        except Exception as e:
+            messages.error(request, str(e))
 
     return render(request, "projects/create_project.html")
 
@@ -69,7 +38,6 @@ def project_detail_view(request, slug):
     memberships = project.memberships.select_related("user").all()
     departments = project.departments.prefetch_related("roles").all()
 
-    # Check current user's membership
     user_membership = memberships.filter(user=request.user).first()
 
     return render(
@@ -87,24 +55,25 @@ def project_detail_view(request, slug):
 @login_required
 def add_crew_member_view(request, slug):
     project = get_object_or_404(Project, slug=slug)
+    actor_membership = get_object_or_404(Membership, project=project, user=request.user)
+
     if request.method == "POST":
         credited_name = request.POST.get("credited_name")
         role_id = request.POST.get("role_id")
         role = get_object_or_404(ProductionRole, pk=role_id, project=project)
 
-        membership = Membership.objects.create(
-            project=project,
-            user=request.user,
-            credited_name=credited_name,
-            status=Membership.Status.ACTIVE,
-        )
-
-        RoleAssignment.objects.create(
-            membership=membership, role=role, is_department_head=True
-        )
-
-        messages.success(request, f"Crew member '{credited_name}' added as {role.name}!")
-        return redirect("project_detail", slug=project.slug)
+        try:
+            add_crew_member_with_role(
+                project=project,
+                actor_membership=actor_membership,
+                target_user=request.user,
+                credited_name=credited_name,
+                role=role,
+            )
+            messages.success(request, f"Crew member '{credited_name}' added as {role.name}!")
+            return redirect("project_detail", slug=project.slug)
+        except Exception as e:
+            messages.error(request, str(e))
 
     roles = ProductionRole.objects.filter(project=project)
     return render(request, "projects/add_crew.html", {"project": project, "roles": roles})

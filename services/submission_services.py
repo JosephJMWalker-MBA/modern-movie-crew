@@ -18,6 +18,7 @@ from services.boundary_services import (
     verify_director_authority,
     verify_membership_in_project,
 )
+from services.upload_services import validate_uploaded_file
 
 
 @transaction.atomic
@@ -26,6 +27,7 @@ def create_submission_with_v1(
     task,
     contributor_membership,
     storage_key: str,
+    file_obj=None,
     external_tool: str = "",
     prompt_used: str = "",
     seed: str = "",
@@ -38,6 +40,12 @@ def create_submission_with_v1(
     verify_membership_in_project(
         membership=contributor_membership, project=task.project
     )
+
+    if file_obj:
+        validate_uploaded_file(file_obj)
+
+    if task.status != task.Status.OPEN:
+        raise ValidationError(f"Cannot submit to task {task.code} because it is not OPEN.")
 
     # Check that contributor has accepted current ProjectTermsVersion
     latest_terms = (
@@ -197,6 +205,7 @@ def create_submission_v2(
     submission: Submission,
     contributor_membership,
     storage_key: str,
+    file_obj=None,
     external_tool: str = "",
     prompt_used: str = "",
     seed: str = "",
@@ -205,6 +214,9 @@ def create_submission_v2(
     verify_membership_in_project(
         membership=contributor_membership, project=submission.task.project
     )
+
+    if file_obj:
+        validate_uploaded_file(file_obj)
 
     if submission.status != Submission.Status.REVISION_REQUESTED:
         raise ValidationError(

@@ -18,6 +18,40 @@ from services.boundary_services import (
 
 
 @transaction.atomic
+def create_character_with_identity(
+    *,
+    project,
+    creator_membership,
+    name: str,
+    description: str = "",
+    facial_notes: str = "",
+) -> Character:
+    verify_membership_in_project(membership=creator_membership, project=project)
+
+    character = Character.objects.create(
+        project=project, name=name, description=description
+    )
+
+    identity_v1 = CharacterIdentityVersion.objects.create(
+        character=character,
+        version_number=1,
+        facial_structure_notes=facial_notes,
+        status=CharacterIdentityVersion.Status.DRAFT,
+    )
+
+    AuditEvent.objects.create(
+        project=project,
+        actor=creator_membership,
+        event_type="character_created",
+        object_type="character",
+        object_id=str(character.id),
+        metadata={"character_name": name},
+    )
+
+    return character
+
+
+@transaction.atomic
 def create_character_identity_version(
     *,
     character: Character,

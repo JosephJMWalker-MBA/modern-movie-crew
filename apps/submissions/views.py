@@ -4,7 +4,7 @@ from django.core.files.storage import FileSystemStorage
 from django.shortcuts import get_object_or_404, redirect, render
 
 from apps.production.models import ProductionTask
-from apps.projects.models import Membership, MembershipAgreement, Project, ProjectTermsVersion
+from apps.projects.models import Membership, MembershipAgreement, Project
 from apps.submissions.models import Submission, SubmissionVersion
 from services.review_services import accept_submission_version
 from services.submission_services import (
@@ -42,6 +42,7 @@ def upload_v1_view(request, slug, task_id):
                 task=task,
                 contributor_membership=membership,
                 storage_key=storage_key,
+                file_obj=file_obj,
                 external_tool=tool,
                 prompt_used=prompt,
                 seed=seed,
@@ -60,6 +61,10 @@ def department_review_view(request, slug, version_id):
     version = get_object_or_404(SubmissionVersion, pk=version_id, submission__task__project=project)
     membership = get_object_or_404(Membership, project=project, user=request.user)
     assignment = membership.role_assignments.filter(ends_at__isnull=True).first()
+
+    if not assignment:
+        messages.error(request, "Active role assignment required for department review.")
+        return redirect("task_detail", slug=project.slug, task_id=version.submission.task.id)
 
     if request.method == "POST":
         decision = request.POST.get("decision", "approved")
@@ -122,6 +127,7 @@ def upload_v2_view(request, slug, submission_id):
                 submission=submission,
                 contributor_membership=membership,
                 storage_key=storage_key,
+                file_obj=file_obj,
                 external_tool=tool,
                 prompt_used=prompt,
                 seed=seed,
