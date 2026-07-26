@@ -1,4 +1,4 @@
-import uuid
+import secrets
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -177,6 +177,14 @@ class ProductionRole(models.Model):
         self.clean()
         return super().save(*args, **kwargs)
 
+    def is_safe_invite_role(self):
+        return not (
+            self.can_assign_tasks
+            or self.can_approve_department_work
+            or self.can_accept_final_assets
+            or self.can_manage_credits
+        )
+
     def __str__(self):
         return f"{self.name} - {self.department.name}"
 
@@ -218,8 +226,8 @@ class RoleAssignment(models.Model):
         return f"{self.membership.credited_name} as {self.role.name}"
 
 
-def generate_invite_token_str():
-    return str(uuid.uuid4())
+def generate_secure_invite_token():
+    return secrets.token_urlsafe(32)
 
 
 class ProjectInviteToken(models.Model):
@@ -229,7 +237,7 @@ class ProjectInviteToken(models.Model):
         on_delete=models.CASCADE,
         db_index=True,
     )
-    token = models.CharField(max_length=64, unique=True, default=generate_invite_token_str, db_index=True)
+    token = models.CharField(max_length=64, unique=True, default=generate_secure_invite_token, db_index=True)
     default_role = models.ForeignKey(
         ProductionRole,
         related_name="invite_tokens",
@@ -254,14 +262,10 @@ class ProjectInviteToken(models.Model):
             if self.default_role.project_id != self.project_id:
                 raise ValidationError("Invite default role must belong to the same project.")
 
-            # DISALLOW PRIVILEGED ROLES BY DEFAULT ON INVITES!
-            if (
-                self.default_role.can_accept_final_assets
-                or self.default_role.can_manage_credits
-                or self.default_role.can_assign_tasks
-            ):
+            # EXPLICIT SAFE ROLE ALLOWLIST CHECK
+            if not self.default_role.is_safe_invite_role():
                 raise ValidationError(
-                    "Invite tokens cannot assign privileged director, producer, or asset acceptance roles by default."
+                    "Invite tokens can only be created for roles with zero administrative, approval, or assignment authority."
                 )
 
         if self.created_by_id and self.project_id:
@@ -269,8 +273,6 @@ class ProjectInviteToken(models.Model):
                 raise ValidationError("Invite creator must belong to the target project.")
 
     def save(self, *args, **kwargs):
-        if isinstance(self.token, uuid.UUID):
-            self.token = str(self.token)
         self.clean()
         return super().save(*args, **kwargs)
 

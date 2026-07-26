@@ -8,9 +8,11 @@ from django.shortcuts import get_object_or_404, redirect, render
 from apps.core.models import AuditEvent, Notification
 from apps.projects.models import Membership, Project
 
+SENSITIVE_METADATA_KEYS = {"token", "storage_key", "password", "secret", "seed"}
+
 
 def dashboard_view(request):
-    projects = Project.objects.all()
+    projects = Project.objects.all().order_by("-created_at", "id")
     return render(request, "dashboard.html", {"projects": projects})
 
 
@@ -30,8 +32,11 @@ def register_view(request):
 
 @login_required
 def notifications_view(request):
-    memberships = Membership.objects.filter(user=request.user)
-    notifications_qs = Notification.objects.filter(membership__in=memberships)
+    notifications_qs = (
+        Notification.objects.filter(membership__user=request.user)
+        .select_related("membership__project")
+        .order_by("-created_at", "-id")
+    )
 
     paginator = Paginator(notifications_qs, 15)
     page_number = request.GET.get("page", 1)
@@ -46,24 +51,49 @@ def notifications_view(request):
 
 @login_required
 def mark_notification_read_view(request, notif_id):
-    memberships = Membership.objects.filter(user=request.user)
-    notif = get_object_or_404(Notification, pk=notif_id, membership__in=memberships)
-    notif.is_read = True
-    notif.save()
+    if request.method == "POST":
+        notif = get_object_or_404(Notification, pk=notif_id, membership__user=request.user)
+        notif.is_read = True
+        notif.save()
     return redirect("notifications")
 
 
 @login_required
 def activity_feed_view(request, slug):
     project = get_object_or_404(Project, slug=slug)
-    audit_events = project.audit_events.select_related("actor").order_by("-created_at")
+    user_membership = get_object_or_404(Membership, project=project, user=request.user)
 
-    paginator = Paginator(audit_events, 20)
+    audit_events_qs = (
+        project.audit_events.select_related("actor")
+        .order_by("-created_at", "-id")
+    )
+
+    paginator = Paginator(audit_events_qs, 20)
     page_number = request.GET.get("page", 1)
     events_page = paginator.get_page(page_number)
+
+    # Sanitize metadata for privacy (remove tokens, storage keys, sensitive info)
+    sanitized_events = []
+    for event in events_page:
+        clean_meta = {
+            k: v for k, v in (event.metadata or {}).items()
+            if k.lower() not in SENSITIVE_METADATA_KEYS
+        }
+        sanitized_events.append({
+            "event_type": event.event_type,
+            "actor": event.actor,
+            "object_type": event.object_type,
+            "object_id": event.object_id,
+            "created_at": event.created_at,
+            "metadata": clean_meta,
+        })
 
     return render(
         request,
         "core/activity_feed.html",
-        {"project": project, "events_page": events_page},
+        {
+            "project": project,
+            "events_page": events_page,
+            "sanitized_events": sanitized_events,
+        },
     )

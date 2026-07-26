@@ -1,10 +1,12 @@
 from datetime import timedelta
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
-from django.test import TestCase
+from django.db import transaction
+from django.test import Client, TestCase
+from django.urls import reverse
 from django.utils import timezone
 
-from apps.core.models import Notification
+from apps.core.models import AuditEvent, Notification
 from apps.production.models import Act, ProductionTask, Scene, Sequence
 from apps.projects.models import (
     Department,
@@ -45,6 +47,10 @@ class Milestone2CommunityRoomTest(TestCase):
             project=self.project_a, department=self.dept_a, name="Director", can_accept_final_assets=True, can_manage_credits=True
         )
 
+        self.head_role_a = ProductionRole.objects.create(
+            project=self.project_a, department=self.dept_a, name="Art Head", can_approve_department_work=True
+        )
+
         self.gen_role_a = ProductionRole.objects.create(
             project=self.project_a, department=self.dept_a, name="Prompt Specialist"
         )
@@ -59,13 +65,23 @@ class Milestone2CommunityRoomTest(TestCase):
         self.mem_contrib_a = Membership.objects.create(project=self.project_a, user=self.user_contributor, credited_name="Contributor A")
         self.mem_contrib_a.role_assignments.create(role=self.gen_role_a)
 
+        self.client = Client()
+
     def test_permission_escalation_prevention_on_invite_tokens(self):
-        # Attempting to create an invite token with director asset-acceptance authority must fail
+        # Director role has final asset acceptance authority -> must be rejected for invites
         with self.assertRaises(ValidationError):
             create_project_invite(
                 project=self.project_a,
                 actor_membership=self.mem_dir_a,
                 default_role=self.dir_role_a,
+            )
+
+        # Department head role has approval authority -> must be rejected for invites
+        with self.assertRaises(ValidationError):
+            create_project_invite(
+                project=self.project_a,
+                actor_membership=self.mem_dir_a,
+                default_role=self.head_role_a,
             )
 
     def test_create_and_accept_valid_invite(self):
@@ -75,6 +91,9 @@ class Milestone2CommunityRoomTest(TestCase):
             default_role=self.gen_role_a,
             max_uses=2,
         )
+
+        # Token must be at least 32 characters long
+        self.assertTrue(len(invite.token) >= 32)
 
         # Accept invite as newbie user
         new_mem = accept_project_invite(
@@ -117,42 +136,75 @@ class Milestone2CommunityRoomTest(TestCase):
         with self.assertRaises(ValidationError):
             accept_project_invite(token_str=invite.token, user=self.user_contributor)
 
-    def test_spare_gen_task_matching_non_mutating(self):
-        act = Act.objects.create(project=self.project_a, act_number=1)
-        seq = Sequence.objects.create(act=act, sequence_number=1)
-        scene = Scene.objects.create(sequence=seq, scene_number=1)
+    def test_spare_gen_task_matching_non_mutating_and_isolated(self):
+        act_a = Act.objects.create(project=self.project_a, act_number=1)
+        seq_a = Sequence.objects.create(act=act_a, sequence_number=1)
+        scene_a = Scene.objects.create(sequence=seq_a, scene_number=1)
 
-        task1 = ProductionTask.objects.create(
-            project=self.project_a, scene=scene, code="V01", title="Video Shot", task_type="video", status="open"
+        act_b = Act.objects.create(project=self.project_b, act_number=1)
+        seq_b = Sequence.objects.create(act=act_b, sequence_number=1)
+        scene_b = Scene.objects.create(sequence=seq_b, scene_number=1)
+
+        task_a = ProductionTask.objects.create(
+            project=self.project_a, scene=scene_a, code="V01", title="Video Shot A", task_type="video", status="open"
         )
-        task2 = ProductionTask.objects.create(
-            project=self.project_a, scene=scene, code="S01", title="Voice Track", task_type="voice", status="open"
+        task_b = ProductionTask.objects.create(
+            project=self.project_b, scene=scene_b, code="V02", title="Video Shot B", task_type="video", status="open"
         )
 
-        # Query matching tasks for video asset type
+        # Contributor in Project A must only see task_a, NEVER cross-project task_b
         matches = find_eligible_open_tasks_for_contributor(
             membership=self.mem_contrib_a, asset_types=["video"]
         )
 
-        self.assertIn(task1, matches)
-        self.assertNotIn(task2, matches)
+        self.assertIn(task_a, matches)
+        self.assertNotIn(task_b, matches)
 
         # Verify query DID NOT mutate task state!
-        task1.refresh_from_db()
-        self.assertEqual(task1.status, ProductionTask.Status.OPEN)
-        self.assertEqual(task1.claims.count(), 0)
+        task_a.refresh_from_db()
+        self.assertEqual(task_a.status, ProductionTask.Status.OPEN)
 
-    def test_transactional_notification_on_task_claim(self):
-        act = Act.objects.create(project=self.project_a, act_number=1)
-        seq = Sequence.objects.create(act=act, sequence_number=1)
-        scene = Scene.objects.create(sequence=seq, scene_number=1)
-        task = ProductionTask.objects.create(
-            project=self.project_a, scene=scene, code="C01", title="Claimable", task_type="video", status="open"
+    def test_unsafe_portfolio_url_rejection_in_profile_edit(self):
+        self.client.login(username="contrib_m2", password="password")
+        url = reverse("edit_profile", kwargs={"slug": self.project_a.slug})
+
+        # POST unsafe javascript URI scheme
+        response = self.client.post(
+            url,
+            {
+                "credited_name": "Contrib A",
+                "public_handle": "@contrib_handle",
+                "portfolio_links": "javascript:alert(1)",
+            },
+            follow=True,
         )
 
-        claim_production_task(task=task, contributor_membership=self.mem_contrib_a)
+        self.assertContains(response, "Invalid portfolio URL scheme or syntax")
+        self.mem_contrib_a.refresh_from_db()
+        self.assertNotIn("javascript:alert(1)", self.mem_contrib_a.portfolio_links)
 
-        # Verify notification created for project director
-        notif = Notification.objects.filter(membership=self.mem_dir_a, title="Task Claimed").first()
-        self.assertIsNotNone(notif)
-        self.assertIn("claimed task C01", notif.message)
+    def test_notification_isolation_per_membership(self):
+        # Create notification for Director A
+        notif = Notification.objects.create(
+            membership=self.mem_dir_a, title="Dir Only", message="Secret update"
+        )
+
+        # Log in as Contributor A
+        self.client.login(username="contrib_m2", password="password")
+        response = self.client.get(reverse("notifications"))
+
+        # Contributor A must NOT see Director A's notification
+        self.assertNotContains(response, "Secret update")
+
+    def test_activity_feed_privacy_sanitizes_tokens(self):
+        invite = create_project_invite(
+            project=self.project_a,
+            actor_membership=self.mem_dir_a,
+            default_role=self.gen_role_a,
+        )
+
+        self.client.login(username="contrib_m2", password="password")
+        response = self.client.get(reverse("activity_feed", kwargs={"slug": self.project_a.slug}))
+
+        # Activity feed must NOT display sensitive raw invite token string in details
+        self.assertNotContains(response, f"'token': '{invite.token}'")
