@@ -1,54 +1,43 @@
 # Modern Movie Crew — Workflow & State Transition Rules
 
-## Task Lifecycle & State Machine
+## Task & Character Lifecycle State Machines
+
+### Character Identity & Facet Approval Flows
+1. **Character Identity Version**:
+   - `DRAFT`: Character design sheet being created by Art Dept.
+   - `APPROVED`: Approved by Art Department Head & Director. Tasks referencing this character can now be created.
+   - `SUPERSEDED`: Replaced by a newer `CharacterIdentityVersion`.
+2. **Character Facets (`CharacterLook`, `VoiceProfile`, `PerformanceProfile`)**:
+   - `DRAFT` → `APPROVED` by their respective department head (Costume, Sound, Performance).
+3. **Character Scene State**:
+   - Authored by Script Supervisor / Continuity for specific scenes. Must be attached via `CharacterTaskLink` to any task involving that character in that scene.
+
+### Task Readiness Requirement with Characters
+A `ProductionTask` involving a character CANNOT transition to `READY` or `OPEN` unless:
+1. All required `PacketSection`s are `APPROVED`.
+2. Linked `CharacterTaskLink` references an `APPROVED` `CharacterIdentityVersion`.
+3. If applicable, linked `CharacterLook` and `CharacterSceneState` are `APPROVED`.
 
 ### Task Status Flow
 ```
-[DRAFT] -> (All required PacketSections Approved) -> [READY] / [OPEN]
-                                                         |
-                                            (Task SATISFIED / CLOSED upon acceptance)
+[DRAFT] -> (Packet & Character Links Approved) -> [READY] / [OPEN]
+                                                       |
+                                          (Task SATISFIED upon acceptance)
 ```
-- `DRAFT`: Task packet sections being compiled.
-- `READY`: Packet sections approved, ready to open claims/calls.
+- `DRAFT`: Task packet sections and character links being compiled.
+- `READY`: Packet and character links approved, ready to open claims/calls.
 - `OPEN`: Accepting claims and submissions.
-- `SATISFIED`: Primary canonical asset accepted (open call may remain OPEN or move to SATISFIED).
+- `SATISFIED`: Primary canonical asset accepted.
 - `CLOSED`: Task complete and locked.
 - `CANCELLED`: Task withdrawn.
 
-### Claim Status Flow (`TaskClaim`)
-- `ACTIVE`: Contributor currently holds reservation on single-contributor task (with expiration timer).
-- `SUBMITTED`: Claim fulfilled by a submission.
-- `EXPIRED`: Claim timed out without upload; task becomes OPEN again.
-- `RELEASED`: Contributor voluntarily gave up claim.
-
-### Submission Status Flow (`Submission`)
-```
-[DRAFT] -> [IN_REVIEW] -> (Dept Review + Director Review)
-                             /                |               \
-                (Revision Requested)      (Accepted)      (Rejected)
-                         |                    |               |
-               [REVISION_REQUESTED]       [ACCEPTED]      [REJECTED]
-             (Uploads new version V2)   (Appends CanonicalSelection)
-```
-- `DRAFT`: Contributor preparing version.
-- `IN_REVIEW`: Submitted, undergoing department review & director evaluation.
-- `REVISION_REQUESTED`: Director requested revision on this specific submission version.
-- `ACCEPTED`: Selected as primary canonical asset.
-- `ALTERNATE`: Accepted as an alternate take.
-- `REJECTED`: Submission declined.
-- `WITHDRAWN`: Contributor withdrew submission.
-
-### Two-Layer Review Execution Rules
-
+### Submission & Review Workflow
 1. **Department Review Layer**:
-   - Department roles review `SubmissionVersion` for technical and departmental fidelity.
-   - Posts `DepartmentReview` with `decision` in (`APPROVED`, `ISSUE_FOUND`, `REVISION_RECOMMENDED`, `NOT_APPLICABLE`).
-   - Advises director and documents departmental responsibility (creating a `CreditEntry` under `RESPONSIBILITY`).
-
+   - Costume Dept reviews `SubmissionVersion` against `CharacterLook` & `CharacterSceneState`.
+   - Sound Dept reviews against `VoiceProfile`.
+   - Script Supervisor reviews against `CharacterSceneState`.
+   - Department reviews issue: `APPROVED`, `ISSUE_FOUND`, `REVISION_RECOMMENDED`, `NOT_APPLICABLE`.
 2. **Director Decision Layer**:
-   - Authorized Director evaluates submission version and department feedback.
-   - Posts `DirectorReview` with `decision`:
-     - `ACCEPT`: Promotes version to canonical asset. Appends `CanonicalSelection` record (retiring previous active selection if any). Sets `Submission` status to `ACCEPTED` and `ProductionTask` to `SATISFIED`. Generates atomic `CreditEntry` and `AuditEvent`.
-     - `ACCEPT_AS_ALTERNATE`: Sets status to `ALTERNATE`. Records credit.
-     - `REQUEST_REVISION`: Sets status to `REVISION_REQUESTED`. Prompts contributor for `SubmissionVersion` V2. Task remains OPEN.
-     - `REJECT`: Sets status to `REJECTED`.
+   - Director evaluates submission and department feedback.
+   - Posts `DirectorReview`: `ACCEPT`, `ACCEPT_AS_ALTERNATE`, `REQUEST_REVISION`, `REJECT`.
+   - `ACCEPT` promotes version to canonical asset, appends `CanonicalSelection`, and generates atomic `CreditEntry` records for submitter and department contributors.

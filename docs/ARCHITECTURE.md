@@ -23,7 +23,8 @@ modern_movie_crew/
 │   ├── accounts/            # Custom User model & Auth
 │   ├── core/                # Audit, Base models, Utilities
 │   ├── projects/            # Projects, Terms, Departments, Roles, Memberships
-│   ├── production/          # Acts, Sequences, Scenes, Tasks, PacketSections, Resources, TaskClaims
+│   ├── characters/          # Character Library: Character, Identity, Looks, Voice, Mocap, SceneState, Rights
+│   ├── production/          # Acts, Sequences, Scenes, Tasks, PacketSections, Resources, TaskClaims, CharacterTaskLinks
 │   ├── submissions/         # Submissions, Versions, Attestations, Dept/Director Reviews, CanonicalSelections
 │   └── credits/             # Credit ledger & Export engine
 ├── services/                # Pure business logic services (atomic operations)
