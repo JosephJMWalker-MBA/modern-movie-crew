@@ -23,6 +23,16 @@ def verify_role_in_project(*, role, project):
 
 
 def verify_department_match(*, assignment, target_department):
+    # Mandatory project boundary check
+    verify_membership_in_project(
+        membership=assignment.membership,
+        project=target_department.project,
+    )
+
+    # Director / final asset authority grants cross-department super-admin authority within the project
+    if assignment.role.can_accept_final_assets:
+        return
+
     if assignment.role.department_id != target_department.id:
         raise PermissionDenied(
             f"Role {assignment.role.name} in department {assignment.role.department.name} "

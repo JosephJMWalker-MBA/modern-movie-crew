@@ -88,7 +88,7 @@ def approve_packet_section(
         target_department=packet_section.department,
     )
 
-    if not reviewer_assignment.role.can_approve_department_work:
+    if not (reviewer_assignment.role.can_approve_department_work or reviewer_assignment.role.can_accept_final_assets):
         raise PermissionDenied(
             "Role assignment cannot approve department packet work."
         )

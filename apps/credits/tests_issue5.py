@@ -14,11 +14,12 @@ class CreditLedgerIssue5Test(TestCase):
         self.user_member = User.objects.create_user(username="member_user", password="Password123!")
         self.user_non_member = User.objects.create_user(username="other_user", password="Password123!")
 
-        self.project_a = Project.objects.create(name="Project A", slug="proj-a")
-        self.project_b = Project.objects.create(name="Project B", slug="proj-b")
+        self.project_a = Project.objects.create(name="Project A", slug="proj-a", created_by=self.user_member)
+        self.project_b = Project.objects.create(name="Project B", slug="proj-b", created_by=self.user_non_member)
 
         self.dept_art = Department.objects.create(project=self.project_a, name="Art Department")
         self.role_dir = ProductionRole.objects.create(
+            project=self.project_a,
             department=self.dept_art,
             name="Director",
             can_accept_final_assets=True,

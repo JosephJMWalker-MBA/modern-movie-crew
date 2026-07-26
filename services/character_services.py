@@ -101,7 +101,7 @@ def approve_character_identity(
         project=identity_version.character.project,
     )
 
-    if not reviewer_assignment.role.can_approve_department_work:
+    if not (reviewer_assignment.role.can_approve_department_work or reviewer_assignment.role.can_accept_final_assets):
         raise PermissionDenied("Role cannot approve character identity work.")
 
     identity_version.status = CharacterIdentityVersion.Status.APPROVED
