@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}My Submitted Feedback — Modern Movie Crew{% endblock %}
+
+{% block content %}
+<div class="space-y-6 font-sans">
+    <!-- Header -->
+    <div class="flex items-center justify-between bg-slate-800 border border-slate-700 rounded-lg p-4">
+        <div>
+            <h1 class="text-xl font-bold text-white">My Submitted Feedback</h1>
+            <p class="text-xs text-slate-400">Review your past workflow feedback submissions and development intake status.</p>
+        </div>
+        <button onclick="document.getElementById('feedbackModal').classList.remove('hidden')" class="bg-amber-600 hover:bg-amber-500 text-white font-semibold text-xs px-4 py-2 rounded">
+            + Submit New Feedback
+        </button>
+    </div>
+
+    <!-- Feedback List -->
+    <div class="bg-slate-800 border border-slate-700 rounded-lg divide-y divide-slate-700/80">
+        {% for fb in user_entries %}
+            <div class="p-4 space-y-2">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <span class="font-bold text-white text-sm">Feedback #{{ fb.id }}: {{ fb.title }}</span>
+                        <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-900 border border-slate-700 text-slate-300">
+                            {{ fb.get_category_display }}
+                        </span>
+                        <span class="px-2 py-0.5 rounded text-[10px] font-semibold 
+                            {% if fb.status == 'resolved' %}bg-emerald-950 text-emerald-300 border border-emerald-800
+                            {% elif fb.status == 'planned' or fb.status == 'in_progress' %}bg-amber-950 text-amber-300 border border-amber-800
+                            {% elif fb.status == 'duplicate' %}bg-purple-950 text-purple-300 border border-purple-800
+                            {% else %}bg-slate-700 text-slate-300{% endif %}">
+                            {{ fb.get_status_display }}
+                        </span>
+                    </div>
+                    <span class="text-xs text-slate-500">{{ fb.created_at|date:"M d, Y H:i" }}</span>
+                </div>
+
+                <div class="text-xs text-amber-300 bg-slate-900/60 p-2.5 rounded border border-slate-800">
+                    <span class="font-bold text-amber-400">Ideal Expectation:</span> {{ fb.ideal_result }}
+                </div>
+
+                <div class="flex items-center gap-4 text-[11px] text-slate-400">
+                    <span>Page: <span class="text-slate-300 font-semibold">{{ fb.page_name }}</span></span>
+                    {% if fb.project %}
+                        <span>Project: <span class="text-slate-300 font-semibold">{{ fb.project.name }}</span></span>
+                    {% endif %}
+                    {% if fb.github_issue_number %}
+                        <span class="text-emerald-400 font-semibold">GitHub Issue #{{ fb.github_issue_number }}</span>
+                    {% endif %}
+                </div>
+            </div>
+        {% empty %}
+            <div class="p-8 text-center text-slate-500 text-xs">
+                You haven't submitted any feedback yet. Click "+ Submit New Feedback" to submit product input anytime.
+            </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

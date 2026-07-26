@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+
+{% block title %}Triage Feedback #{{ feedback.id }} — Modern Movie Crew{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-6 font-sans">
+    <!-- Header -->
+    <div class="flex items-center justify-between bg-slate-800 border border-slate-700 rounded-lg p-4">
+        <div>
+            <div class="flex items-center gap-2">
+                <h1 class="text-xl font-bold text-white">Feedback #{{ feedback.id }}: {{ feedback.title }}</h1>
+                <span class="px-2 py-0.5 rounded text-xs font-semibold bg-amber-950 border border-amber-800 text-amber-300">
+                    {{ feedback.get_status_display }}
+                </span>
+            </div>
+            <p class="text-xs text-slate-400 mt-1">Submitted by {{ feedback.submitted_by.username }} on {{ feedback.created_at|date:"M d, Y H:i" }}</p>
+        </div>
+        <a href="{% url 'feedback_inbox' %}" class="bg-slate-700 hover:bg-slate-600 text-white font-semibold text-xs px-4 py-2 rounded">
+            Back to Feedback Inbox
+        </a>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Left 2 Cols: Feedback Details & Context -->
+        <div class="lg:col-span-2 space-y-4">
+            <!-- Ideal Expectation Card -->
+            <div class="bg-amber-950/40 border border-amber-800 rounded-lg p-4 space-y-1">
+                <h3 class="text-xs font-bold text-amber-400 uppercase tracking-wider">What would user ideally want to happen here?</h3>
+                <p class="text-xs text-amber-100 leading-relaxed font-medium">{{ feedback.ideal_result }}</p>
+            </div>
+
+            <!-- Workflow Context Card -->
+            <div class="bg-slate-800 border border-slate-700 rounded-lg p-4 space-y-3 text-xs text-slate-300">
+                <div>
+                    <h4 class="font-bold text-slate-400 text-[11px]">What the user was trying to do:</h4>
+                    <p class="mt-1 leading-relaxed">{{ feedback.what_user_was_doing }}</p>
+                </div>
+
+                {% if feedback.actual_result %}
+                    <div>
+                        <h4 class="font-bold text-slate-400 text-[11px]">What actually happened:</h4>
+                        <p class="mt-1 leading-relaxed">{{ feedback.actual_result }}</p>
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Context Snapshot -->
+            <div class="bg-slate-800 border border-slate-700 rounded-lg p-4 space-y-2 text-xs">
+                <h3 class="text-xs font-bold text-white uppercase tracking-wider">Preserved Page & Entity Context</h3>
+                <div class="grid grid-cols-2 gap-3 text-slate-300">
+                    <div><span class="text-slate-400">Page Name:</span> {{ feedback.page_name }}</div>
+                    <div><span class="text-slate-400">Page URL:</span> <a href="{{ feedback.page_url }}" class="underline text-amber-400">{{ feedback.page_url }}</a></div>
+                    {% if feedback.project %}
+                        <div><span class="text-slate-400">Project:</span> {{ feedback.project.name }}</div>
+                    {% endif %}
+                    {% if feedback.context_type %}
+                        <div><span class="text-slate-400">Linked Entity:</span> {{ feedback.context_type }} (#{{ feedback.context_identifier }})</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Col: Admin Triage & GitHub Link Panel -->
+        <div class="bg-slate-800 border border-slate-700 rounded-lg p-5 space-y-4">
+            <h3 class="font-bold text-white text-sm border-b border-slate-700 pb-2">Triage & Development Conversion</h3>
+
+            <form method="post" class="space-y-4">
+                {% csrf_token %}
+
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Status</label>
+                    <select name="status" class="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-white text-xs">
+                        <option value="new" {% if feedback.status == "new" %}selected{% endif %}>New</option>
+                        <option value="triaged" {% if feedback.status == "triaged" %}selected{% endif %}>Triaged</option>
+                        <option value="planned" {% if feedback.status == "planned" %}selected{% endif %}>Planned</option>
+                        <option value="in_progress" {% if feedback.status == "in_progress" %}selected{% endif %}>In Progress</option>
+                        <option value="resolved" {% if feedback.status == "resolved" %}selected{% endif %}>Resolved</option>
+                        <option value="declined" {% if feedback.status == "declined" %}selected{% endif %}>Declined</option>
+                        <option value="duplicate" {% if feedback.status == "duplicate" %}selected{% endif %}>Duplicate</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Link GitHub Issue #</label>
+                    <input type="number" name="github_issue_number" value="{{ feedback.github_issue_number|default:'' }}" placeholder="e.g. 8" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-white text-xs">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1">GitHub Issue URL (Optional)</label>
+                    <input type="url" name="github_issue_url" value="{{ feedback.github_issue_url }}" placeholder="https://github.com/..." class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-white text-xs">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Mark Duplicate Of (Optional)</label>
+                    <select name="duplicate_of_id" class="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-white text-xs">
+                        <option value="">-- None --</option>
+                        {% for opt in all_feedback_options %}
+                            <option value="{{ opt.id }}" {% if feedback.duplicate_of_id == opt.id %}selected{% endif %}>#{{ opt.id }}: {{ opt.title|truncatechars:30 }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Internal Development Notes</label>
+                    <textarea name="internal_notes" rows="4" placeholder="Notes for development team triage..." class="w-full bg-slate-900 border border-slate-700 rounded p-2.5 text-white text-xs leading-relaxed">{{ feedback.internal_notes }}</textarea>
+                </div>
+
+                <button type="submit" class="w-full bg-amber-600 hover:bg-amber-500 text-white font-semibold py-2 rounded text-xs">
+                    Save Triage Updates
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

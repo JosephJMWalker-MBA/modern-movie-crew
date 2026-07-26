@@ -5,6 +5,7 @@ from django.urls import include, path
 
 from apps.characters import views as char_views
 from apps.core import views as core_views
+from apps.core import views_feedback as fb_views
 from apps.credits import views as credit_views
 from apps.production import views as prod_views
 from apps.production import views_coverage as cov_views
@@ -27,6 +28,11 @@ urlpatterns = [
     path("register/", core_views.register_view, name="register"),
     path("notifications/", core_views.notifications_view, name="notifications"),
     path("notifications/<int:notif_id>/read/", core_views.mark_notification_read_view, name="mark_notification_read"),
+    # Contextual In-App User Feedback (Issue #8)
+    path("feedback/submit/", fb_views.submit_feedback_view, name="submit_feedback"),
+    path("feedback/my/", fb_views.my_feedback_view, name="my_feedback"),
+    path("feedback/inbox/", fb_views.feedback_inbox_view, name="feedback_inbox"),
+    path("feedback/<int:feedback_id>/", fb_views.feedback_detail_view, name="feedback_detail"),
     # Public Provenance Layer (Milestone 3)
     path("p/<slug:slug>/", pub_views.public_project_view, name="public_project"),
     path("p/<slug:slug>/credits/", pub_views.public_credit_roll_view, name="public_credit_roll"),

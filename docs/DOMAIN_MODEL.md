@@ -44,7 +44,8 @@ Project
 │               │       └── DirectorReview (Final decision by Director)
 │               └── CanonicalSelection (Append-only record of canonical asset history)
 ├── CreditEntry (Historical credit snapshot pointing to RESPONSIBILITY/WORK source)
-└── AuditEvent (Append-only log)
+├── AuditEvent (Append-only log)
+└── UserFeedback (In-App Contextual Feedback & Triage Record)
 ```
 
 ## Detailed Entity Models
@@ -105,3 +106,14 @@ Project
   - Source links: `role_assignment`, `packet_section`, `resource`, `character_identity_version`, `character_look`, `voice_profile`, `department_review`, `submission_version`, `final_cut_usage`
   - `status`: `PENDING`, `ELIGIBLE`, `CONFIRMED`, `WITHHELD`
 - `AuditEvent`: Append-only system log (`project`, `actor`, `event_type`, `object_type`, `object_id`, `metadata`, `created_at`).
+
+### 9. Contextual User Feedback & Development Intake
+- `UserFeedback`:
+  - `submitted_by`, `project` (nullable)
+  - `category`: `BUG`, `MISSING_CAPABILITY`, `WORKFLOW_IMPROVEMENT`, `CONFUSING_INTERFACE`, `PERFORMANCE`, `ACCESSIBILITY`, `FEATURE_REQUEST`, `OTHER`
+  - `title`, `what_user_was_doing`, `actual_result`, `ideal_result` (*What would you ideally want to happen here?*)
+  - `severity`: `LOW`, `MEDIUM`, `HIGH`, `CRITICAL`
+  - `page_url`, `page_name`, `context_type`, `context_identifier`, `context_snapshot` (allowlisted metadata dict)
+  - `status`: `NEW`, `TRIAGED`, `PLANNED`, `IN_PROGRESS`, `RESOLVED`, `DECLINED`, `DUPLICATE`
+  - `duplicate_of`, `github_issue_number`, `github_issue_url`, `internal_notes`
+  - `created_at`, `updated_at`
