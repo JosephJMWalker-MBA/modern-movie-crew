@@ -1,8 +1,9 @@
+import logging
 from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.db import connection
+from django.db import connection, models
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -11,18 +12,44 @@ from apps.accounts.forms import CustomUserCreationForm
 from apps.core.models import AuditEvent, Notification
 from apps.projects.models import Membership, Project
 
-SENSITIVE_METADATA_KEYS = {"token", "storage_key", "password", "secret", "seed"}
+logger = logging.getLogger("django")
+
+ALLOWED_ACTIVITY_FIELDS_BY_EVENT = {
+    "project_created": {"project_name"},
+    "crew_member_added": {"credited_name", "role_name"},
+    "character_created": {"character_name"},
+    "character_identity_approved": {"character_name", "version_number"},
+    "character_look_approved": {"character_name", "look_name"},
+    "production_task_created": {"task_code"},
+    "packet_section_approved": {"task_code", "section_type"},
+    "task_opened": {"task_code"},
+    "task_claimed": {"task_code"},
+    "submission_v1_created": {"task_code", "version_number"},
+    "department_review_submitted": {"task_code", "decision"},
+    "submission_revision_requested": {"task_code", "version_number"},
+    "submission_version_created": {"task_code", "version_number"},
+    "submission_version_accepted": {"task_code", "version_number", "as_alternate"},
+    "project_invite_created": {"default_role"},
+    "project_invite_revoked": {},
+    "project_invite_accepted": {"credited_name"},
+    "provenance_snapshot_published": {"version_number"},
+}
 
 
 def health_check_view(request):
     try:
         connection.ensure_connection()
         db_status = "connected"
+        status_code = 200
+        client_msg = "healthy"
+        db_client_msg = "connected"
     except Exception as e:
-        db_status = f"error: {str(e)}"
-        return JsonResponse({"status": "unhealthy", "database": db_status}, status=503)
+        logger.error("Database connection failure in health check", exc_info=True)
+        status_code = 503
+        client_msg = "unhealthy"
+        db_client_msg = "unavailable"
 
-    return JsonResponse({"status": "healthy", "database": db_status})
+    return JsonResponse({"status": client_msg, "database": db_client_msg}, status=status_code)
 
 
 def custom_404_view(request, exception=None):
@@ -33,8 +60,14 @@ def custom_500_view(request):
     return render(request, "500.html", status=500)
 
 
+@login_required
 def dashboard_view(request):
-    projects = Project.objects.all().order_by("-created_at", "id")
+    # Dashboard Privacy: Filter projects where user is an active member or project is public
+    user_project_ids = Membership.objects.filter(user=request.user).values_list("project_id", flat=True)
+    projects = Project.objects.filter(
+        models.Q(id__in=user_project_ids) | models.Q(is_public=True)
+    ).distinct().order_by("-created_at", "id")
+
     return render(request, "dashboard.html", {"projects": projects})
 
 
@@ -48,7 +81,6 @@ def register_view(request):
             user.save()
             login(request, user)
 
-            # Prevent open redirects
             if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
                 return redirect(next_url)
             return redirect("dashboard")
@@ -79,9 +111,11 @@ def notifications_view(request):
 @login_required
 def mark_notification_read_view(request, notif_id):
     if request.method == "POST":
-        notif = get_object_or_404(Notification, pk=notif_id, membership__user=request.user)
-        notif.is_read = True
-        notif.save()
+        from services.notification_services import mark_notification_as_read
+        try:
+            mark_notification_as_read(notif_id=notif_id, user=request.user)
+        except Exception as e:
+            messages.error(request, str(e))
     return redirect("notifications")
 
 
@@ -99,11 +133,13 @@ def activity_feed_view(request, slug):
     page_number = request.GET.get("page", 1)
     events_page = paginator.get_page(page_number)
 
+    # POSITIVE ALLOWLIST PER EVENT TYPE FOR ACTIVITY FEED METADATA
     sanitized_events = []
     for event in events_page:
+        allowed_keys = ALLOWED_ACTIVITY_FIELDS_BY_EVENT.get(event.event_type, set())
         clean_meta = {
             k: v for k, v in (event.metadata or {}).items()
-            if k.lower() not in SENSITIVE_METADATA_KEYS
+            if k in allowed_keys
         }
         sanitized_events.append({
             "event_type": event.event_type,

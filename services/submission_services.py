@@ -19,7 +19,7 @@ from services.boundary_services import (
     verify_membership_in_project,
 )
 from services.notification_services import create_notification
-from services.upload_services import validate_uploaded_file
+from services.upload_services import generate_collision_safe_filename, validate_uploaded_file
 
 
 @transaction.atomic
@@ -27,7 +27,7 @@ def create_submission_with_v1(
     *,
     task,
     contributor_membership,
-    storage_key: str,
+    storage_key: str = "",
     file_obj=None,
     external_tool: str = "",
     prompt_used: str = "",
@@ -44,6 +44,9 @@ def create_submission_with_v1(
 
     if file_obj:
         validate_uploaded_file(file_obj)
+        storage_key = generate_collision_safe_filename(file_obj)
+    elif not storage_key:
+        storage_key = f"v1_submission_{task.code}.mp4"
 
     if task.status != task.Status.OPEN:
         raise ValidationError(f"Cannot submit to task {task.code} because it is not OPEN.")
@@ -199,11 +202,9 @@ def request_submission_revision(
         notes=notes,
     )
 
-    # Submission status becomes REVISION_REQUESTED
     submission.status = Submission.Status.REVISION_REQUESTED
     submission.save()
 
-    # Notify contributor
     create_notification(
         membership=submission.contributor,
         title="Revision Requested",
@@ -231,7 +232,7 @@ def create_submission_v2(
     *,
     submission: Submission,
     contributor_membership,
-    storage_key: str,
+    storage_key: str = "",
     file_obj=None,
     external_tool: str = "",
     prompt_used: str = "",
@@ -244,6 +245,9 @@ def create_submission_v2(
 
     if file_obj:
         validate_uploaded_file(file_obj)
+        storage_key = generate_collision_safe_filename(file_obj)
+    elif not storage_key:
+        storage_key = f"v2_submission_{submission.task.code}.mp4"
 
     if submission.status != Submission.Status.REVISION_REQUESTED:
         raise ValidationError(
@@ -263,11 +267,9 @@ def create_submission_v2(
         created_by=contributor_membership,
     )
 
-    # Return submission status to IN_REVIEW
     submission.status = Submission.Status.IN_REVIEW
     submission.save()
 
-    # Notify directors
     directors = submission.task.project.memberships.filter(
         role_assignments__role__can_accept_final_assets=True
     ).distinct()

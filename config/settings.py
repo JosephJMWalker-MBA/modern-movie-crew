@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from django.core.exceptions import ImproperlyConfigured
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -12,12 +13,30 @@ SECRET_KEY = os.environ.get(
 
 DEBUG = os.environ.get("DEBUG", "True").lower() in ("true", "1", "yes")
 
-ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1,*").split(",")
+# Parse ALLOWED_HOSTS safely
+raw_allowed = os.environ.get("ALLOWED_HOSTS", "")
+if raw_allowed:
+    ALLOWED_HOSTS = [h.strip() for h in raw_allowed.split(",") if h.strip()]
+else:
+    ALLOWED_HOSTS = ["localhost", "127.0.0.1"] if DEBUG else []
+
 CSRF_TRUSTED_ORIGINS = [
     o.strip()
     for o in os.environ.get("CSRF_TRUSTED_ORIGINS", "http://localhost:8000,http://127.0.0.1:8000").split(",")
     if o.strip()
 ]
+
+# Fail-Closed Security Validation in Production Mode
+if not DEBUG:
+    if not SECRET_KEY or "django-insecure-" in SECRET_KEY:
+        raise ImproperlyConfigured(
+            "CRITICAL: Production deployment requires a secure, non-placeholder SECRET_KEY environment variable."
+        )
+
+    if not ALLOWED_HOSTS or "*" in ALLOWED_HOSTS:
+        raise ImproperlyConfigured(
+            "CRITICAL: Production deployment requires an explicit, non-wildcard ALLOWED_HOSTS environment variable."
+        )
 
 # Application definition
 INSTALLED_APPS = [

@@ -34,20 +34,24 @@ def publish_project_provenance_snapshot(
     Creates an immutable published provenance snapshot for a project.
     EXPLICIT ALLOWLIST OF PUBLIC FIELDS ONLY.
     Excludes rejected work, private reviews, rights attestations, tokens, and file storage paths.
+    Uses select_for_update on the project to prevent concurrent version numbering race conditions.
     """
     verify_director_authority(reviewer=actor_membership, project=project)
 
+    # Lock project row to prevent concurrent publication race conditions
+    locked_project = Project.objects.select_for_update().get(pk=project.pk)
+
     next_version_num = (
-        project.provenance_snapshots.order_by("-version_number").first().version_number + 1
-        if project.provenance_snapshots.exists()
+        locked_project.provenance_snapshots.order_by("-version_number").first().version_number + 1
+        if locked_project.provenance_snapshots.exists()
         else 1
     )
 
-    project.provenance_snapshots.filter(retired_at__isnull=True).update(retired_at=timezone.now())
+    locked_project.provenance_snapshots.filter(retired_at__isnull=True).update(retired_at=timezone.now())
 
     eligible_credits = (
         CreditEntry.objects.filter(
-            project=project,
+            project=locked_project,
             status=CreditEntry.Status.ELIGIBLE,
             contributor__public_credit_opt_in=True,
         )
@@ -71,7 +75,7 @@ def publish_project_provenance_snapshot(
         if c.contributor.public_handle:
             contributor_handles.add(c.contributor.public_handle)
 
-    accepted_tasks = project.tasks.filter(
+    accepted_tasks = locked_project.tasks.filter(
         canonical_selections__retired_at__isnull=True
     ).prefetch_related("canonical_selections__submission_version__created_by")
 
@@ -96,20 +100,20 @@ def publish_project_provenance_snapshot(
             })
 
     departments_list = list(
-        project.departments.values_list("name", flat=True)
+        locked_project.departments.values_list("name", flat=True)
     )
 
     manifest = {
         "manifest_version": "1.0",
         "published_at": timezone.now().isoformat(),
         "project": {
-            "name": project.name,
-            "slug": project.slug,
-            "synopsis": project.synopsis,
-            "status": project.status,
-            "poster_image": project.poster_image or "",
-            "final_film_url": project.final_film_url or "",
-            "is_public": project.is_public,
+            "name": locked_project.name,
+            "slug": locked_project.slug,
+            "synopsis": locked_project.synopsis,
+            "status": locked_project.status,
+            "poster_image": locked_project.poster_image or "",
+            "final_film_url": locked_project.final_film_url or "",
+            "is_public": locked_project.is_public,
         },
         "summary": {
             "verified_contributor_count": len(contributor_handles) or len(public_credits_list),
@@ -122,7 +126,7 @@ def publish_project_provenance_snapshot(
     }
 
     snapshot = ProjectProvenanceSnapshot.objects.create(
-        project=project,
+        project=locked_project,
         version_number=next_version_num,
         published_by=actor_membership,
         snapshot_title=title or f"Publication Snapshot v{next_version_num}",
@@ -130,7 +134,7 @@ def publish_project_provenance_snapshot(
     )
 
     AuditEvent.objects.create(
-        project=project,
+        project=locked_project,
         actor=actor_membership,
         event_type="provenance_snapshot_published",
         object_type="project_provenance_snapshot",

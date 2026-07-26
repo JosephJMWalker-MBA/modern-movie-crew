@@ -19,12 +19,22 @@
         </div>
         <div>
             <label class="block text-sm font-medium text-slate-300 mb-1">Available External Tools (Comma-separated)</label>
-            <input type="text" name="available_tools" value="{{ membership.available_tools|join:', ' }}" placeholder="Sora, Runway Gen-3, ElevenLabs, Suno" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-white text-xs">
+            <input type="text" name="available_tools" value="{{ membership.available_tools|join:', ' }}" placeholder="Sora, Runway, Veo, ElevenLabs, Suno" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-white text-xs">
         </div>
         <div>
             <label class="block text-sm font-medium text-slate-300 mb-1">Supported Asset Types (Comma-separated)</label>
             <input type="text" name="supported_asset_types" value="{{ membership.supported_asset_types|join:', ' }}" placeholder="video, voice, sound, image" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-white text-xs">
         </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-300 mb-1">Portfolio Links (Comma-separated URLs)</label>
+            <input type="text" name="portfolio_links" value="{{ membership.portfolio_links|join:', ' }}" placeholder="https://myportfolio.com, https://artstation.com/creator" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-white text-xs">
+        </div>
+
+        <div class="p-3 bg-slate-900 rounded border border-slate-700 text-xs text-slate-400 space-y-1">
+            <h4 class="font-bold text-amber-400">Public Credit Consent & Provenance Policy</h4>
+            <p>Withdrawing public credit opt-in consent affects future published snapshots. Previously published immutable snapshots remain preserved.</p>
+        </div>
+
         <button type="submit" class="w-full bg-amber-600 hover:bg-amber-500 text-white font-semibold py-2 rounded">
             Save Contributor Profile
         </button>
