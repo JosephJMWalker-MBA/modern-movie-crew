@@ -42,12 +42,12 @@
                             Notifications
                         </a>
                         <span class="text-sm font-semibold text-slate-300">{{ user.username }}</span>
-                        <form method="post" action="{% url 'admin:logout' %}" class="inline">
+                        <form method="post" action="{% url 'logout' %}" class="inline">
                             {% csrf_token %}
                             <button type="submit" class="text-xs text-slate-400 hover:text-red-400">Logout</button>
                         </form>
                     {% else %}
-                        <a href="{% url 'admin:login' %}" class="text-sm font-medium text-slate-300 hover:text-white">Login</a>
+                        <a href="{% url 'login' %}" class="text-sm font-medium text-slate-300 hover:text-white">Login</a>
                         <a href="{% url 'register' %}" class="text-sm font-semibold px-3 py-1.5 rounded bg-amber-600 hover:bg-amber-500 text-white">Register</a>
                     {% endif %}
                 </div>
