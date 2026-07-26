@@ -1,35 +1,39 @@
-# Modern Movie Crew — Development Roadmap & Milestones
+# Modern Movie Crew — Revised Development Roadmap & Milestones
 
-## Milestone 1: The Core Vertical Slice (P1)
-**Goal:** Build and verify the end-to-end governance lifecycle in code.
+## Milestone 0 — Scaffold & Guardrails
+- Django project initialization with Python 3.13 / Django 5.2 LTS
+- Custom `User` model (`accounts.User`)
+- Environment configuration & settings (PostgreSQL / SQLite)
+- Linting, formatting, base test suite setup
+- Relative documentation links verification
+- Storage abstraction layer (local media storage setup)
+- Base audit log utilities
 
-1. **Authentication & Projects Foundation**:
-   - Custom User model
-   - Project creation and slug generation
-   - Department and ProductionRole setup
-   - Crew Membership and RoleAssignment with permissions matrix
-2. **Production Organization**:
-   - Scenes and ProductionTasks
-   - PacketSection creation, assignment, and approval workflow
-   - Resource attachments
-3. **Creative Review & Provenance Loop**:
-   - Contributor task claiming
-   - Submission and immutable SubmissionVersion (V1) creation
-   - Reviewer decision posting (ACCEPT, ALTERNATE, REVISION, REJECT)
-   - Contributor V2 upload on revision request
-   - Version acceptance -> CanonicalAsset setting
-4. **Credit Ledger & Audit Trail**:
-   - Atomic credit creation upon version acceptance
-   - Append-only audit logging for every critical transition
-   - Verification test suite proving all domain constraints hold
+## Milestone 1 — One Complete Production Loop (With Minimal UI)
+- **Domain Models**: Projects, Memberships, ProjectTermsVersions, MembershipAgreements, Departments, Roles, Acts, Sequences, Scenes, Tasks, PacketSections, Resources, TaskClaims (with expiration), Submissions, Immutable SubmissionVersions, SubmissionAttestations, DepartmentReviews, DirectorReviews, Append-Only CanonicalSelections, CreditEntries.
+- **Service Layer**: 5-point permission and boundary check enforcement on all state transitions.
+- **Minimal Functional UI**: Plain Django + HTMX views to test and prove the full human workflow end-to-end:
+  - Log in → Create project → Add departments & crew → Create act/sequence/scene/task → Complete packet sections → Open task → Claim task → Upload V1 → Department review → Director requests revision → Upload V2 → Director accepts V2 → CanonicalSelection created → Credit recorded.
+- **Full Automated Test Suite**: Testing all happy paths and domain edge cases.
 
-## Milestone 2: UI & Production Board (P2)
-- HTMX dynamic production board (Act -> Sequence -> Scene -> Task cards)
-- Review room UI with side-by-side version comparison
-- Credit ledger dashboard and crew roster views
-- Public project progress page & Spare-Gen queue
+## Milestone 2 — Community Production Room
+- Invitation links, public/private/unlisted project visibility
+- Open-call submissions and crew calls
+- Spare-generation task queue
+- Direct presigned S3 / R2 uploads & signed download URLs
+- Dynamic HTMX Production Board (Act → Sequence → Scene → Task cards)
+- Review Room UI & Notifications Inbox
+- Public progress page
 
-## Milestone 3: Advanced Features & Export (P3)
-- Direct S3 presigned URL client-side upload handler
-- Exportable credit rolls and EDL / NLE timeline packages
-- Revenue participation and tokenized credit exchanges
+## Milestone 3 — Post-Production & Credits
+- Final-cut asset usage records (`FinalCutUsage`)
+- Credit verification by contributors
+- Credit ordering and department grouping
+- Project-defined credit policies, contribution reports, and external compensation exports
+- Rolling-credit generator & NLE timeline exports (EDL/XML/CSV)
+
+## Milestone 4 — Production Scale
+- Task and script bulk imports
+- Reusable department templates and project cloning
+- Media proxy generation and video thumbnails
+- Moderation and dispute resolution records

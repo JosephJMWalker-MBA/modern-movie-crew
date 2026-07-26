@@ -1,46 +1,54 @@
 # Modern Movie Crew — Workflow & State Transition Rules
 
-## Task Lifecycle State Machine
+## Task Lifecycle & State Machine
 
+### Task Status Flow
 ```
-[DRAFT] -> (All required PacketSections Approved) -> [OPEN]
-                                                       |
-                                               (Contributor claims/submits)
-                                                       v
-                                                 [IN_REVIEW]
-                                                /           \
-                                (Director accepts)         (Director requests revision)
-                                      v                             v
-                                 [APPROVED]                   [REVISION]
-                            (CanonicalAsset set)              (New SubmissionVersion required)
+[DRAFT] -> (All required PacketSections Approved) -> [READY] / [OPEN]
+                                                         |
+                                            (Task SATISFIED / CLOSED upon acceptance)
 ```
+- `DRAFT`: Task packet sections being compiled.
+- `READY`: Packet sections approved, ready to open claims/calls.
+- `OPEN`: Accepting claims and submissions.
+- `SATISFIED`: Primary canonical asset accepted (open call may remain OPEN or move to SATISFIED).
+- `CLOSED`: Task complete and locked.
+- `CANCELLED`: Task withdrawn.
 
-### State Transitions & Rules
+### Claim Status Flow (`TaskClaim`)
+- `ACTIVE`: Contributor currently holds reservation on single-contributor task (with expiration timer).
+- `SUBMITTED`: Claim fulfilled by a submission.
+- `EXPIRED`: Claim timed out without upload; task becomes OPEN again.
+- `RELEASED`: Contributor voluntarily gave up claim.
 
-1. **Draft to Open (`DRAFT` -> `OPEN`)**:
-   - Condition: All required `PacketSection`s associated with the `ProductionTask` must have `status == APPROVED`.
-   - Result: Task becomes visible on project production board and available for generation claims.
+### Submission Status Flow (`Submission`)
+```
+[DRAFT] -> [IN_REVIEW] -> (Dept Review + Director Review)
+                             /                |               \
+                (Revision Requested)      (Accepted)      (Rejected)
+                         |                    |               |
+               [REVISION_REQUESTED]       [ACCEPTED]      [REJECTED]
+             (Uploads new version V2)   (Appends CanonicalSelection)
+```
+- `DRAFT`: Contributor preparing version.
+- `IN_REVIEW`: Submitted, undergoing department review & director evaluation.
+- `REVISION_REQUESTED`: Director requested revision on this specific submission version.
+- `ACCEPTED`: Selected as primary canonical asset.
+- `ALTERNATE`: Accepted as an alternate take.
+- `REJECTED`: Submission declined.
+- `WITHDRAWN`: Contributor withdrew submission.
 
-2. **Open to Claimed/In Review (`OPEN` -> `CLAIMED` / `IN_REVIEW`)**:
-   - A contributor claims the task or uploads `SubmissionVersion` V1.
-   - Task status transitions to `IN_REVIEW`.
+### Two-Layer Review Execution Rules
 
-3. **In Review to Revision Requested (`IN_REVIEW` -> `REVISION`)**:
-   - Reviewer posts a `Review` with `decision == REVISION`.
-   - `Submission` status becomes `REVISION`.
-   - Contributor is notified and prompted to upload `SubmissionVersion` V2.
-   - Previous versions remain unchanged and immutable.
+1. **Department Review Layer**:
+   - Department roles review `SubmissionVersion` for technical and departmental fidelity.
+   - Posts `DepartmentReview` with `decision` in (`APPROVED`, `ISSUE_FOUND`, `REVISION_RECOMMENDED`, `NOT_APPLICABLE`).
+   - Advises director and documents departmental responsibility (creating a `CreditEntry` under `RESPONSIBILITY`).
 
-4. **In Review to Approved (`IN_REVIEW` -> `APPROVED`)**:
-   - Reviewer with `can_accept_final_assets == True` posts a `Review` with `decision == ACCEPT`.
-   - `Submission` status becomes `ACCEPTED`.
-   - `ProductionTask` status becomes `APPROVED`.
-   - `CanonicalAsset` is created or updated to point to the approved `SubmissionVersion`.
-   - An eligible `CreditEntry` is generated atomically in the credit ledger.
-   - An `AuditEvent` is appended.
-
-5. **Alternate Takes (`ACCEPT` as Alternate)**:
-   - Reviewer selects `decision == ALTERNATE`.
-   - `Submission` status becomes `ALTERNATE`.
-   - `ProductionTask` remains `OPEN` or `APPROVED` depending on whether a primary canonical asset exists.
-   - Credit entry is recorded for the alternate contribution.
+2. **Director Decision Layer**:
+   - Authorized Director evaluates submission version and department feedback.
+   - Posts `DirectorReview` with `decision`:
+     - `ACCEPT`: Promotes version to canonical asset. Appends `CanonicalSelection` record (retiring previous active selection if any). Sets `Submission` status to `ACCEPTED` and `ProductionTask` to `SATISFIED`. Generates atomic `CreditEntry` and `AuditEvent`.
+     - `ACCEPT_AS_ALTERNATE`: Sets status to `ALTERNATE`. Records credit.
+     - `REQUEST_REVISION`: Sets status to `REVISION_REQUESTED`. Prompts contributor for `SubmissionVersion` V2. Task remains OPEN.
+     - `REJECT`: Sets status to `REJECTED`.
