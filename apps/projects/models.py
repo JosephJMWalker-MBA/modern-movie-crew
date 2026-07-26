@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
 
 
@@ -115,6 +116,20 @@ class MembershipAgreement(models.Model):
     class Meta:
         unique_together = ("membership", "terms_version")
 
+    def clean(self):
+        if (
+            self.membership_id
+            and self.terms_version_id
+            and self.membership.project_id != self.terms_version.project_id
+        ):
+            raise ValidationError(
+                "Membership and ProjectTermsVersion must belong to the same project."
+            )
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        return super().save(*args, **kwargs)
+
     def __str__(self):
         return f"{self.membership} accepted v{self.terms_version.version_number}"
 
@@ -140,6 +155,20 @@ class ProductionRole(models.Model):
     class Meta:
         unique_together = ("project", "department", "name")
 
+    def clean(self):
+        if (
+            self.project_id
+            and self.department_id
+            and self.department.project_id != self.project_id
+        ):
+            raise ValidationError(
+                "Department must belong to the same project as ProductionRole."
+            )
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        return super().save(*args, **kwargs)
+
     def __str__(self):
         return f"{self.name} - {self.department.name}"
 
@@ -158,6 +187,20 @@ class RoleAssignment(models.Model):
     starts_at = models.DateTimeField(auto_now_add=True)
     ends_at = models.DateTimeField(null=True, blank=True)
     is_department_head = models.BooleanField(default=False)
+
+    def clean(self):
+        if (
+            self.membership_id
+            and self.role_id
+            and self.membership.project_id != self.role.project_id
+        ):
+            raise ValidationError(
+                "Membership and ProductionRole must belong to the same project."
+            )
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        return super().save(*args, **kwargs)
 
     def is_active(self):
         return self.ends_at is None

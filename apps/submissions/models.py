@@ -29,6 +29,20 @@ class Submission(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
+    def clean(self):
+        if (
+            self.task_id
+            and self.contributor_id
+            and self.task.project_id != self.contributor.project_id
+        ):
+            raise ValidationError(
+                "Task and Contributor must belong to the same project."
+            )
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        return super().save(*args, **kwargs)
+
     def latest_version(self):
         return self.versions.order_by("-version_number").first()
 
@@ -60,19 +74,28 @@ class SubmissionVersion(models.Model):
         unique_together = ("submission", "version_number")
         ordering = ("version_number",)
 
-    def save(self, *args, **kwargs):
-        if self.pk and self.canonical_uses.exists():
+    def clean(self):
+        if (
+            self.submission_id
+            and self.created_by_id
+            and self.submission.task.project_id != self.created_by.project_id
+        ):
             raise ValidationError(
-                "Accepted canonical submission versions are immutable and cannot be updated."
+                "Submission and Created_by membership must belong to the same project."
             )
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise ValidationError(
+                "SubmissionVersions are immutable once uploaded and cannot be modified. Create a new version for revisions."
+            )
+        self.clean()
         return super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        if self.canonical_uses.exists():
-            raise ValidationError(
-                "Accepted canonical submission versions are immutable and cannot be deleted."
-            )
-        return super().delete(*args, **kwargs)
+        raise ValidationError(
+            "SubmissionVersions are immutable and cannot be deleted."
+        )
 
     def __str__(self):
         return f"{self.submission.task.code} Submission v{self.version_number}"
@@ -119,6 +142,21 @@ class DepartmentReview(models.Model):
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    def clean(self):
+        if (
+            self.version_id
+            and self.reviewer_assignment_id
+            and self.version.submission.task.project_id
+            != self.reviewer_assignment.role.project_id
+        ):
+            raise ValidationError(
+                "SubmissionVersion and Reviewer assignment must belong to the same project."
+            )
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        return super().save(*args, **kwargs)
+
     def __str__(self):
         return f"Dept Review ({self.reviewer_assignment.role.department.name}): {self.decision}"
 
@@ -143,6 +181,20 @@ class DirectorReview(models.Model):
     decision = models.CharField(max_length=20, choices=Decision.choices)
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    def clean(self):
+        if (
+            self.version_id
+            and self.reviewer_id
+            and self.version.submission.task.project_id != self.reviewer.project_id
+        ):
+            raise ValidationError(
+                "SubmissionVersion and Director reviewer must belong to the same project."
+            )
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        return super().save(*args, **kwargs)
 
     def __str__(self):
         return f"Director Review: {self.decision} on {self.version}"
@@ -176,6 +228,30 @@ class CanonicalSelection(models.Model):
 
     class Meta:
         ordering = ("-selected_at",)
+        constraints = [
+            models.UniqueConstraint(
+                fields=["task"],
+                condition=models.Q(retired_at__isnull=True),
+                name="unique_active_canonical_per_task",
+            )
+        ]
+
+    def clean(self):
+        if self.submission_version_id and self.task_id:
+            if self.submission_version.submission.task_id != self.task_id:
+                raise ValidationError(
+                    "CanonicalSelection version must belong to the specified task."
+                )
+
+        if self.selected_by_id and self.task_id:
+            if self.selected_by.project_id != self.task.project_id:
+                raise ValidationError(
+                    "Selection actor must belong to the task's project."
+                )
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        return super().save(*args, **kwargs)
 
     def __str__(self):
         status = "Active" if self.retired_at is None else "Retired"

@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError
 from django.db import models
 
 
@@ -103,6 +104,29 @@ class CreditEntry(models.Model):
     final_order = models.PositiveIntegerField(null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
+
+    def clean(self):
+        if self.contributor_id and self.project_id:
+            if self.contributor.project_id != self.project_id:
+                raise ValidationError(
+                    "Contributor membership must belong to the CreditEntry project."
+                )
+
+        if self.pk:
+            # Immutability check for snapshot fields
+            original = CreditEntry.objects.get(pk=self.pk)
+            if (
+                original.credited_name != self.credited_name
+                or original.role_name != self.role_name
+                or original.department_name != self.department_name
+            ):
+                raise ValidationError(
+                    "Historical credit snapshot names (credited_name, role_name, department_name) cannot be altered once recorded."
+                )
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        return super().save(*args, **kwargs)
 
     def __str__(self):
         return f"Credit ({self.basis}): {self.credited_name} as {self.role_name} [{self.status}]"

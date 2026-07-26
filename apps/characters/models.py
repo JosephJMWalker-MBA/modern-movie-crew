@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError
 from django.db import models
 
 
@@ -52,6 +53,19 @@ class CharacterIdentityVersion(models.Model):
         unique_together = ("character", "version_number")
         ordering = ("-version_number",)
 
+    def clean(self):
+        if (
+            self.approved_by_id
+            and self.approved_by.project_id != self.character.project_id
+        ):
+            raise ValidationError(
+                "Approving membership must belong to the character's project."
+            )
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        return super().save(*args, **kwargs)
+
     def __str__(self):
         return f"{self.character.name} Identity v{self.version_number} [{self.status}]"
 
@@ -102,6 +116,19 @@ class CharacterLook(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
+    def clean(self):
+        if (
+            self.created_by_id
+            and self.created_by.project_id != self.character.project_id
+        ):
+            raise ValidationError(
+                "Created_by membership must belong to the character's project."
+            )
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        return super().save(*args, **kwargs)
+
     def __str__(self):
         return f"{self.character.name} - Look: {self.name}"
 
@@ -130,6 +157,19 @@ class VoiceProfile(models.Model):
         on_delete=models.PROTECT,
     )
     created_at = models.DateTimeField(auto_now_add=True)
+
+    def clean(self):
+        if (
+            self.created_by_id
+            and self.created_by.project_id != self.character.project_id
+        ):
+            raise ValidationError(
+                "Created_by membership must belong to the character's project."
+            )
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        return super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.character.name} - Voice: {self.name}"
@@ -160,6 +200,19 @@ class PerformanceProfile(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
+    def clean(self):
+        if (
+            self.created_by_id
+            and self.created_by.project_id != self.character.project_id
+        ):
+            raise ValidationError(
+                "Created_by membership must belong to the character's project."
+            )
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        return super().save(*args, **kwargs)
+
     def __str__(self):
         return f"{self.character.name} - Performance: {self.name}"
 
@@ -188,6 +241,20 @@ class CharacterSceneState(models.Model):
     class Meta:
         unique_together = ("character", "scene")
 
+    def clean(self):
+        if (
+            self.character_id
+            and self.scene_id
+            and self.character.project_id != self.scene.sequence.act.project_id
+        ):
+            raise ValidationError(
+                "Character and Scene must belong to the same project."
+            )
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        return super().save(*args, **kwargs)
+
     def __str__(self):
         return f"{self.character.name} State in Scene {self.scene.scene_number}"
 
@@ -212,6 +279,19 @@ class CharacterRightsRecord(models.Model):
     effective_date = models.DateTimeField(auto_now_add=True)
     expiration_date = models.DateTimeField(null=True, blank=True)
     document_key = models.CharField(max_length=500, blank=True)
+
+    def clean(self):
+        if (
+            self.actor_membership_id
+            and self.actor_membership.project_id != self.character.project_id
+        ):
+            raise ValidationError(
+                "Actor membership must belong to the character's project."
+            )
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        return super().save(*args, **kwargs)
 
     def __str__(self):
         return f"Rights record for {self.character.name} ({self.licensor_name})"

@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError
 from django.db import models
 
 
@@ -99,6 +100,36 @@ class ProductionTask(models.Model):
     class Meta:
         unique_together = ("project", "code")
 
+    def clean(self):
+        if (
+            self.scene_id
+            and self.scene.sequence.act.project_id != self.project_id
+        ):
+            raise ValidationError(
+                "Scene and ProductionTask must belong to the same project."
+            )
+
+        if self.status in [self.Status.READY, self.Status.OPEN]:
+            # Verify packet sections
+            unapproved_required_sections = self.packet_sections.filter(
+                required=True
+            ).exclude(status="approved")
+            if unapproved_required_sections.exists():
+                raise ValidationError(
+                    "All required packet sections must be approved before task can transition to READY or OPEN."
+                )
+
+            # Verify character links have approved identity versions
+            for link in self.character_links.all():
+                if link.character_identity_version.status != "approved":
+                    raise ValidationError(
+                        f"Character {link.character.name} identity version must be APPROVED before task can transition to READY or OPEN."
+                    )
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        return super().save(*args, **kwargs)
+
     def active_canonical_selection(self):
         return self.canonical_selections.filter(retired_at__isnull=True).first()
 
@@ -155,6 +186,20 @@ class PacketSection(models.Model):
 
     class Meta:
         unique_together = ("task", "section_type")
+
+    def clean(self):
+        if (
+            self.task_id
+            and self.department_id
+            and self.department.project_id != self.task.project_id
+        ):
+            raise ValidationError(
+                "Department must belong to the same project as ProductionTask."
+            )
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        return super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.task.code} Packet: {self.section_type} [{self.status}]"
@@ -224,6 +269,20 @@ class TaskResource(models.Model):
     class Meta:
         unique_together = ("task", "resource")
 
+    def clean(self):
+        if (
+            self.task_id
+            and self.resource_id
+            and self.task.project_id != self.resource.project_id
+        ):
+            raise ValidationError(
+                "Task and Resource must belong to the same project."
+            )
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        return super().save(*args, **kwargs)
+
     def __str__(self):
         return f"{self.task.code} -> {self.resource.title}"
 
@@ -252,6 +311,20 @@ class TaskClaim(models.Model):
         choices=Status.choices,
         default=Status.ACTIVE,
     )
+
+    def clean(self):
+        if (
+            self.task_id
+            and self.contributor_id
+            and self.task.project_id != self.contributor.project_id
+        ):
+            raise ValidationError(
+                "Task and Contributor must belong to the same project."
+            )
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        return super().save(*args, **kwargs)
 
     def __str__(self):
         return f"Claim by {self.contributor.credited_name} on {self.task.code} [{self.status}]"
@@ -304,6 +377,49 @@ class CharacterTaskLink(models.Model):
 
     class Meta:
         unique_together = ("task", "character")
+
+    def clean(self):
+        if not (self.task_id and self.character_id and self.character_identity_version_id):
+            return
+
+        if self.character.project_id != self.task.project_id:
+            raise ValidationError(
+                "Task and Character must belong to the same project."
+            )
+
+        if self.character_identity_version.character_id != self.character_id:
+            raise ValidationError(
+                "CharacterIdentityVersion does not belong to the linked Character."
+            )
+
+        if self.character_look and self.character_look.character_id != self.character_id:
+            raise ValidationError(
+                "CharacterLook does not belong to the linked Character."
+            )
+
+        if self.voice_profile and self.voice_profile.character_id != self.character_id:
+            raise ValidationError(
+                "VoiceProfile does not belong to the linked Character."
+            )
+
+        if self.performance_profile and self.performance_profile.character_id != self.character_id:
+            raise ValidationError(
+                "PerformanceProfile does not belong to the linked Character."
+            )
+
+        if self.character_scene_state:
+            if self.character_scene_state.character_id != self.character_id:
+                raise ValidationError(
+                    "CharacterSceneState does not belong to the linked Character."
+                )
+            if self.task.scene_id and self.character_scene_state.scene_id != self.task.scene_id:
+                raise ValidationError(
+                    "CharacterSceneState must match the task's scene."
+                )
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        return super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.task.code} -> Character: {self.character.name}"
