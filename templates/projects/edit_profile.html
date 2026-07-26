@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}Contributor Profile — {{ project.name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto bg-slate-800 border border-slate-700 rounded-lg p-6">
+    <h2 class="text-xl font-bold text-white mb-2">Edit Contributor Profile</h2>
+    <p class="text-xs text-slate-400 mb-6">Project: {{ project.name }}</p>
+
+    <form method="post" class="space-y-4">
+        {% csrf_token %}
+        <div>
+            <label class="block text-sm font-medium text-slate-300 mb-1">Credited Name</label>
+            <input type="text" name="credited_name" value="{{ membership.credited_name }}" required class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-white">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-300 mb-1">Public Handle</label>
+            <input type="text" name="public_handle" value="{{ membership.public_handle }}" placeholder="@creator_handle" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-white">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-300 mb-1">Available External Tools (Comma-separated)</label>
+            <input type="text" name="available_tools" value="{{ membership.available_tools|join:', ' }}" placeholder="Sora, Runway Gen-3, ElevenLabs, Suno" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-white text-xs">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-300 mb-1">Supported Asset Types (Comma-separated)</label>
+            <input type="text" name="supported_asset_types" value="{{ membership.supported_asset_types|join:', ' }}" placeholder="video, voice, sound, image" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-white text-xs">
+        </div>
+        <button type="submit" class="w-full bg-amber-600 hover:bg-amber-500 text-white font-semibold py-2 rounded">
+            Save Contributor Profile
+        </button>
+    </form>
+</div>
+{% endblock %}

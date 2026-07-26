@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block title %}Accept Invite — {{ invite.project.name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto bg-slate-800 border border-slate-700 rounded-lg p-6">
+    <h2 class="text-xl font-bold text-white mb-2">Join Project: {{ invite.project.name }}</h2>
+    <p class="text-xs text-slate-400 mb-6">Default Role: <strong class="text-amber-400">{{ invite.default_role.name }}</strong> ({{ invite.default_role.department.name }})</p>
+
+    <form method="post" class="space-y-4">
+        {% csrf_token %}
+        <div>
+            <label class="block text-sm font-medium text-slate-300 mb-1">Your Credited Name for this Project</label>
+            <input type="text" name="credited_name" value="{{ user.display_name|default:user.username }}" required class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-white">
+        </div>
+        <div class="p-3 bg-slate-900 rounded border border-slate-700 text-xs text-slate-300 space-y-2">
+            <h4 class="font-bold text-amber-400">Project Terms Agreement</h4>
+            <p>By accepting this invite, you agree to the active Project Terms Version for {{ invite.project.name }}. All generative contributions submitted will require explicit rights attestation.</p>
+        </div>
+        <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2.5 rounded">
+            Accept Invite & Enter Production Room
+        </button>
+    </form>
+</div>
+{% endblock %}

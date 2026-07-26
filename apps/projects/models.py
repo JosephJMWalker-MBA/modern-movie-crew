@@ -1,6 +1,8 @@
+import uuid
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.utils import timezone
 
 
 class Project(models.Model):
@@ -12,19 +14,20 @@ class Project(models.Model):
         ARCHIVED = "archived", "Archived"
 
     name = models.CharField(max_length=200)
-    slug = models.SlugField(unique=True)
+    slug = models.SlugField(unique=True, db_index=True)
     synopsis = models.TextField(blank=True)
     status = models.CharField(
         max_length=20,
         choices=Status.choices,
         default=Status.DEVELOPMENT,
+        db_index=True,
     )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
         related_name="created_projects",
     )
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
@@ -78,6 +81,7 @@ class Membership(models.Model):
         Project,
         related_name="memberships",
         on_delete=models.CASCADE,
+        db_index=True,
     )
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -90,7 +94,11 @@ class Membership(models.Model):
         max_length=20,
         choices=Status.choices,
         default=Status.INVITED,
+        db_index=True,
     )
+    available_tools = models.JSONField(default=list, blank=True)
+    supported_asset_types = models.JSONField(default=list, blank=True)
+    portfolio_links = models.JSONField(default=list, blank=True)
     joined_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -178,6 +186,7 @@ class RoleAssignment(models.Model):
         Membership,
         related_name="role_assignments",
         on_delete=models.CASCADE,
+        db_index=True,
     )
     role = models.ForeignKey(
         ProductionRole,
@@ -207,3 +216,72 @@ class RoleAssignment(models.Model):
 
     def __str__(self):
         return f"{self.membership.credited_name} as {self.role.name}"
+
+
+def generate_invite_token_str():
+    return str(uuid.uuid4())
+
+
+class ProjectInviteToken(models.Model):
+    project = models.ForeignKey(
+        Project,
+        related_name="invite_tokens",
+        on_delete=models.CASCADE,
+        db_index=True,
+    )
+    token = models.CharField(max_length=64, unique=True, default=generate_invite_token_str, db_index=True)
+    default_role = models.ForeignKey(
+        ProductionRole,
+        related_name="invite_tokens",
+        on_delete=models.PROTECT,
+    )
+    created_by = models.ForeignKey(
+        Membership,
+        related_name="created_invites",
+        on_delete=models.PROTECT,
+    )
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    expires_at = models.DateTimeField(db_index=True)
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    max_uses = models.PositiveIntegerField(default=1)
+    uses_count = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ("-created_at",)
+
+    def clean(self):
+        if self.default_role_id and self.project_id:
+            if self.default_role.project_id != self.project_id:
+                raise ValidationError("Invite default role must belong to the same project.")
+
+            # DISALLOW PRIVILEGED ROLES BY DEFAULT ON INVITES!
+            if (
+                self.default_role.can_accept_final_assets
+                or self.default_role.can_manage_credits
+                or self.default_role.can_assign_tasks
+            ):
+                raise ValidationError(
+                    "Invite tokens cannot assign privileged director, producer, or asset acceptance roles by default."
+                )
+
+        if self.created_by_id and self.project_id:
+            if self.created_by.project_id != self.project_id:
+                raise ValidationError("Invite creator must belong to the target project.")
+
+    def save(self, *args, **kwargs):
+        if isinstance(self.token, uuid.UUID):
+            self.token = str(self.token)
+        self.clean()
+        return super().save(*args, **kwargs)
+
+    def is_valid(self):
+        if self.revoked_at is not None:
+            return False
+        if timezone.now() > self.expires_at:
+            return False
+        if self.uses_count >= self.max_uses:
+            return False
+        return True
+
+    def __str__(self):
+        return f"Invite for {self.project.name} (Role: {self.default_role.name})"

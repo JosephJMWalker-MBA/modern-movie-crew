@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+
+{% block title %}Production Room — {{ project.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div>
+        <h1 class="text-3xl font-bold text-white">{{ project.name }} — Production Room</h1>
+        <p class="text-slate-400 text-sm mt-1">Community coordination overview for production team & contributors.</p>
+    </div>
+    <div class="flex gap-3">
+        <a href="{% url 'spare_gen' project.slug %}" class="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-sm px-4 py-2 rounded">
+            ⚡ I Have a Spare Gen
+        </a>
+        <a href="{% url 'create_task' project.slug %}" class="bg-amber-600 hover:bg-amber-500 text-white font-semibold text-sm px-4 py-2 rounded">
+            + New Production Task
+        </a>
+        <a href="{% url 'create_invite' project.slug %}" class="bg-slate-700 hover:bg-slate-600 text-white font-semibold text-sm px-4 py-2 rounded">
+            🔗 Create Invite Link
+        </a>
+    </div>
+</div>
+
+<!-- Progress Banner -->
+<div class="bg-slate-800 border border-slate-700 rounded-lg p-6 mb-8">
+    <div class="flex items-center justify-between mb-2">
+        <span class="text-sm font-semibold text-slate-300">Production Progress</span>
+        <span class="text-sm font-bold text-amber-400">{{ satisfied_tasks }} / {{ total_tasks }} Tasks Satisfied ({{ progress_percent }}%)</span>
+    </div>
+    <div class="w-full bg-slate-900 rounded-full h-3">
+        <div class="bg-amber-500 h-3 rounded-full" style="width: {{ progress_percent }}%"></div>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <!-- Left Column: Open Tasks & Claimed -->
+    <div class="lg:col-span-2 space-y-8">
+        <!-- Open Tasks -->
+        <div class="bg-slate-800 border border-slate-700 rounded-lg p-6">
+            <h2 class="text-xl font-bold text-white mb-4">Open Production Tasks (Awaiting Contributors)</h2>
+            <div class="space-y-3">
+                {% for task in open_tasks_page %}
+                    <div class="p-4 bg-slate-900 rounded border border-slate-700 flex items-center justify-between">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <span class="font-mono text-amber-400 font-bold text-sm">{{ task.code }}</span>
+                                <span class="text-xs bg-slate-700 text-slate-200 px-2 py-0.5 rounded">{{ task.task_type }}</span>
+                            </div>
+                            <h4 class="text-sm font-semibold text-white mt-1">{{ task.title }}</h4>
+                        </div>
+                        <a href="{% url 'task_detail' project.slug task.id %}" class="text-xs bg-amber-600 hover:bg-amber-500 text-white font-semibold px-3 py-1.5 rounded">
+                            View & Claim
+                        </a>
+                    </div>
+                {% empty %}
+                    <div class="text-xs text-slate-500">No open tasks available.</div>
+                {% endfor %}
+            </div>
+
+            <!-- Pagination Controls -->
+            {% if open_tasks_page.has_other_pages %}
+            <div class="flex justify-between items-center mt-4 text-xs text-slate-400">
+                {% if open_tasks_page.has_previous %}
+                    <a href="?page={{ open_tasks_page.previous_page_number }}" class="hover:text-amber-400">&larr; Previous</a>
+                {% else %}
+                    <span></span>
+                {% endif %}
+                <span>Page {{ open_tasks_page.number }} of {{ open_tasks_page.paginator.num_pages }}</span>
+                {% if open_tasks_page.has_next %}
+                    <a href="?page={{ open_tasks_page.next_page_number }}" class="hover:text-amber-400">Next &rarr;</a>
+                {% else %}
+                    <span></span>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Submissions Awaiting Department / Director Review -->
+        <div class="bg-slate-800 border border-slate-700 rounded-lg p-6">
+            <h2 class="text-xl font-bold text-white mb-4">Submissions Awaiting Review</h2>
+            <div class="space-y-3">
+                {% for sub in awaiting_reviews %}
+                    <div class="p-4 bg-slate-900 rounded border border-slate-700 flex items-center justify-between">
+                        <div>
+                            <span class="font-mono text-amber-400 font-bold text-xs">{{ sub.task.code }}</span>
+                            <p class="text-xs text-slate-300">By {{ sub.contributor.credited_name }} (Version {{ sub.latest_version.version_number }})</p>
+                        </div>
+                        <a href="{% url 'task_detail' project.slug sub.task.id %}" class="text-xs bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded font-semibold">
+                            Review Submission
+                        </a>
+                    </div>
+                {% empty %}
+                    <div class="text-xs text-slate-500">No submissions currently in review.</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column: Revision Requests & Accepted Assets -->
+    <div class="space-y-8">
+        <!-- Active Revision Requests -->
+        <div class="bg-slate-800 border border-slate-700 rounded-lg p-6">
+            <h3 class="text-lg font-bold text-white mb-4">Active Revision Requests</h3>
+            <div class="space-y-3">
+                {% for rev in revision_requests %}
+                    <div class="p-3 bg-slate-900 rounded border border-red-900/50">
+                        <span class="font-mono text-red-400 font-bold text-xs">{{ rev.task.code }}</span>
+                        <p class="text-xs text-slate-300 mt-1">Contributor: {{ rev.contributor.credited_name }}</p>
+                        <a href="{% url 'task_detail' project.slug rev.task.id %}" class="inline-block mt-2 text-xs text-amber-400 hover:underline">
+                            View details & upload V2 &rarr;
+                        </a>
+                    </div>
+                {% empty %}
+                    <div class="text-xs text-slate-500">No open revision requests.</div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Recently Accepted Assets -->
+        <div class="bg-slate-800 border border-slate-700 rounded-lg p-6">
+            <h3 class="text-lg font-bold text-white mb-4">Recently Accepted Canonical Assets</h3>
+            <div class="space-y-3">
+                {% for can in recent_canonicals %}
+                    <div class="p-3 bg-slate-900 rounded border border-emerald-900/50">
+                        <div class="flex items-center justify-between">
+                            <span class="font-mono text-emerald-400 font-bold text-xs">{{ can.task.code }}</span>
+                            <span class="text-[10px] text-slate-400">v{{ can.submission_version.version_number }}</span>
+                        </div>
+                        <p class="text-xs text-slate-300 mt-1">Tool: {{ can.submission_version.external_tool }}</p>
+                        <span class="text-[10px] text-slate-500 block">Accepted by {{ can.selected_by.credited_name }}</span>
+                    </div>
+                {% empty %}
+                    <div class="text-xs text-slate-500">No canonical assets accepted yet.</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

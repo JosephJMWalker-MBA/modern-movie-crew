@@ -12,6 +12,7 @@ from apps.submissions.models import (
     SubmissionVersion,
 )
 from services.boundary_services import verify_director_authority
+from services.notification_services import create_notification
 
 
 @transaction.atomic
@@ -90,6 +91,14 @@ def accept_submission_version(
         status=CreditEntry.Status.ELIGIBLE,
         contribution_summary=f"Generated accepted asset v{locked_version.version_number} for task {task.code}",
         submission_version=locked_version,
+    )
+
+    # Notify submitter
+    create_notification(
+        membership=submission.contributor,
+        title="Asset Accepted as Canonical!" if not as_alternate else "Asset Accepted as Alternate Take",
+        message=f"Your version {locked_version.version_number} for task {task.code} was accepted by the Director.",
+        link_url=f"/projects/{task.project.slug}/tasks/{task.id}/",
     )
 
     AuditEvent.objects.create(

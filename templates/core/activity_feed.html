@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Activity Feed — {{ project.name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold text-white">Production Activity Feed</h1>
+        <p class="text-sm text-slate-400">Append-only log of immutable audit events for {{ project.name }}.</p>
+    </div>
+
+    <div class="space-y-3">
+        {% for event in events_page %}
+            <div class="p-4 bg-slate-800 border border-slate-700 rounded-lg flex items-center justify-between">
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="font-mono text-xs font-bold text-amber-400">{{ event.event_type }}</span>
+                        <span class="text-xs text-slate-400">by {{ event.actor.credited_name|default:"System" }}</span>
+                    </div>
+                    <p class="text-xs text-slate-300 mt-1">Object: <span class="font-mono text-slate-400">{{ event.object_type }}:{{ event.object_id }}</span></p>
+                    {% if event.metadata %}
+                        <p class="text-[10px] font-mono text-slate-500 mt-1">Details: {{ event.metadata }}</p>
+                    {% endif %}
+                </div>
+                <span class="text-[10px] font-mono text-slate-500">{{ event.created_at|date:"M d H:i:s" }}</span>
+            </div>
+        {% empty %}
+            <div class="p-8 text-center text-slate-500 bg-slate-800/50 border border-slate-800 rounded-lg">
+                No activity recorded yet.
+            </div>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination Controls -->
+    {% if events_page.has_other_pages %}
+    <div class="flex justify-between items-center mt-6 text-xs text-slate-400">
+        {% if events_page.has_previous %}
+            <a href="?page={{ events_page.previous_page_number }}" class="hover:text-amber-400">&larr; Previous Page</a>
+        {% else %}
+            <span></span>
+        {% endif %}
+        <span>Page {{ events_page.number }} of {{ events_page.paginator.num_pages }}</span>
+        {% if events_page.has_next %}
+            <a href="?page={{ events_page.next_page_number }}" class="hover:text-amber-400">Next Page &rarr;</a>
+        {% else %}
+            <span></span>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

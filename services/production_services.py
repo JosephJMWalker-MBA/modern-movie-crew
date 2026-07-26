@@ -20,6 +20,7 @@ from services.boundary_services import (
     verify_department_match,
     verify_membership_in_project,
 )
+from services.notification_services import create_notification
 
 
 @transaction.atomic
@@ -196,6 +197,18 @@ def claim_production_task(
         expires_at=expires_at,
         status=TaskClaim.Status.ACTIVE,
     )
+
+    # Notify project director
+    directors = task.project.memberships.filter(
+        role_assignments__role__can_accept_final_assets=True
+    ).distinct()
+    for dir_mem in directors:
+        create_notification(
+            membership=dir_mem,
+            title="Task Claimed",
+            message=f"{contributor_membership.credited_name} claimed task {task.code}.",
+            link_url=f"/projects/{task.project.slug}/tasks/{task.id}/",
+        )
 
     AuditEvent.objects.create(
         project=task.project,

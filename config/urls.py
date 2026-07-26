@@ -12,13 +12,22 @@ from apps.submissions import views as sub_views
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    # Core & Auth
+    # Core, Auth & Notifications
     path("", core_views.dashboard_view, name="dashboard"),
     path("register/", core_views.register_view, name="register"),
-    # Projects
+    path("notifications/", core_views.notifications_view, name="notifications"),
+    path("notifications/<int:notif_id>/read/", core_views.mark_notification_read_view, name="mark_notification_read"),
+    # Projects & Room
     path("projects/new/", proj_views.create_project_view, name="create_project"),
     path("projects/<slug:slug>/", proj_views.project_detail_view, name="project_detail"),
+    path("projects/<slug:slug>/room/", proj_views.production_room_view, name="production_room"),
     path("projects/<slug:slug>/crew/add/", proj_views.add_crew_member_view, name="add_crew_member"),
+    path("projects/<slug:slug>/profile/edit/", proj_views.edit_profile_view, name="edit_profile"),
+    path("projects/<slug:slug>/invites/new/", proj_views.create_invite_view, name="create_invite"),
+    path("projects/<slug:slug>/invites/<int:invite_id>/revoke/", proj_views.revoke_invite_view, name="revoke_invite"),
+    path("invites/<str:token_str>/accept/", proj_views.accept_invite_view, name="accept_invite"),
+    path("projects/<slug:slug>/spare-gen/", proj_views.spare_gen_view, name="spare_gen"),
+    path("projects/<slug:slug>/activity/", core_views.activity_feed_view, name="activity_feed"),
     # Characters
     path("projects/<slug:slug>/characters/", char_views.character_list_view, name="character_list"),
     path("projects/<slug:slug>/characters/new/", char_views.create_character_view, name="create_character"),

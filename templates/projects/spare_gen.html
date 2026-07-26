@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block title %}⚡ Spare Gen Task Discovery — {{ project.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-8">
+    <h1 class="text-3xl font-bold text-white mb-2">⚡ "I Have a Spare Gen" — Task Discovery</h1>
+    <p class="text-sm text-slate-400">Match your available model compute, tools, or generation credits to open project tasks.</p>
+</div>
+
+<!-- Filter Bar -->
+<div class="bg-slate-800 border border-slate-700 rounded-lg p-4 mb-8">
+    <form method="get" class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">Asset Type</label>
+            <select name="asset_type" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-xs text-white">
+                <option value="">All Asset Types</option>
+                <option value="video" {% if selected_asset_type == 'video' %}selected{% endif %}>Video</option>
+                <option value="voice" {% if selected_asset_type == 'voice' %}selected{% endif %}>Voice</option>
+                <option value="sound" {% if selected_asset_type == 'sound' %}selected{% endif %}>Sound / FX</option>
+                <option value="image" {% if selected_asset_type == 'image' %}selected{% endif %}>Image / Look</option>
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">Department</label>
+            <select name="department_id" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-xs text-white">
+                <option value="">All Departments</option>
+                {% for d in departments %}
+                    <option value="{{ d.id }}" {% if selected_dept == d.id|stringformat:"i" %}selected{% endif %}>{{ d.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">Claim Status</label>
+            <select name="claimed" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-xs text-white">
+                <option value="all" {% if selected_claimed == 'all' %}selected{% endif %}>All Tasks</option>
+                <option value="unclaimed" {% if selected_claimed == 'unclaimed' %}selected{% endif %}>Unclaimed Only</option>
+                <option value="claimed" {% if selected_claimed == 'claimed' %}selected{% endif %}>Claimed Only</option>
+            </select>
+        </div>
+        <div class="flex items-end">
+            <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-1.5 rounded text-xs">
+                Filter Eligible Tasks
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- Task Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    {% for task in tasks_page %}
+        <div class="bg-slate-800 border border-slate-700 rounded-lg p-5 flex flex-col justify-between">
+            <div>
+                <div class="flex items-center justify-between mb-2">
+                    <span class="font-mono text-amber-400 font-bold text-sm">{{ task.code }}</span>
+                    <span class="text-xs bg-slate-700 text-emerald-300 font-semibold px-2 py-0.5 rounded">{{ task.task_type }}</span>
+                </div>
+                <h3 class="text-base font-bold text-white mb-2">{{ task.title }}</h3>
+                <p class="text-xs text-slate-400 mb-4 line-clamp-3">Scene: {{ task.scene.title|default:"General Scene" }}</p>
+            </div>
+
+            <div class="pt-4 border-t border-slate-700 flex items-center justify-between">
+                <span class="text-[10px] text-slate-500">Status: {{ task.status|upper }}</span>
+                <a href="{% url 'task_detail' project.slug task.id %}" class="text-xs bg-amber-600 hover:bg-amber-500 text-white px-3 py-1.5 rounded font-semibold">
+                    Claim & Generate &rarr;
+                </a>
+            </div>
+        </div>
+    {% empty %}
+        <div class="col-span-full p-8 text-center text-slate-500 bg-slate-800/50 rounded-lg border border-slate-800">
+            No matching open tasks found for the selected criteria.
+        </div>
+    {% endfor %}
+</div>
+
+<!-- Pagination Controls -->
+{% if tasks_page.has_other_pages %}
+<div class="flex justify-between items-center mt-8 text-xs text-slate-400">
+    {% if tasks_page.has_previous %}
+        <a href="?page={{ tasks_page.previous_page_number }}&asset_type={{ selected_asset_type }}&department_id={{ selected_dept }}&claimed={{ selected_claimed }}" class="hover:text-amber-400">&larr; Previous Page</a>
+    {% else %}
+        <span></span>
+    {% endif %}
+    <span>Page {{ tasks_page.number }} of {{ tasks_page.paginator.num_pages }}</span>
+    {% if tasks_page.has_next %}
+        <a href="?page={{ tasks_page.next_page_number }}&asset_type={{ selected_asset_type }}&department_id={{ selected_dept }}&claimed={{ selected_claimed }}" class="hover:text-amber-400">Next Page &rarr;</a>
+    {% else %}
+        <span></span>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}

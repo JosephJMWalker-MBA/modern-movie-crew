@@ -18,6 +18,7 @@ from services.boundary_services import (
     verify_director_authority,
     verify_membership_in_project,
 )
+from services.notification_services import create_notification
 from services.upload_services import validate_uploaded_file
 
 
@@ -96,6 +97,18 @@ def create_submission_with_v1(
         active_claim.status = "submitted"
         active_claim.save()
 
+    # Notify directors
+    directors = task.project.memberships.filter(
+        role_assignments__role__can_accept_final_assets=True
+    ).distinct()
+    for d in directors:
+        create_notification(
+            membership=d,
+            title="Submission Received",
+            message=f"V1 uploaded for task {task.code} by {contributor_membership.credited_name}.",
+            link_url=f"/projects/{task.project.slug}/tasks/{task.id}/",
+        )
+
     AuditEvent.objects.create(
         project=task.project,
         actor=contributor_membership,
@@ -141,6 +154,14 @@ def submit_department_review(
         department_review=review,
     )
 
+    # Notify submitter
+    create_notification(
+        membership=version.submission.contributor,
+        title="Department Review Completed",
+        message=f"Department review ({decision}) posted for task {version.submission.task.code} v{version.version_number}.",
+        link_url=f"/projects/{version.submission.task.project.slug}/tasks/{version.submission.task.id}/",
+    )
+
     AuditEvent.objects.create(
         project=version.submission.task.project,
         actor=reviewer_assignment.membership,
@@ -182,7 +203,13 @@ def request_submission_revision(
     submission.status = Submission.Status.REVISION_REQUESTED
     submission.save()
 
-    # Note: Task status remains OPEN (it does NOT move globally to revision!)
+    # Notify contributor
+    create_notification(
+        membership=submission.contributor,
+        title="Revision Requested",
+        message=f"Director requested a revision on task {task.code} v{version.version_number}.",
+        link_url=f"/projects/{task.project.slug}/tasks/{task.id}/",
+    )
 
     AuditEvent.objects.create(
         project=task.project,
@@ -239,6 +266,18 @@ def create_submission_v2(
     # Return submission status to IN_REVIEW
     submission.status = Submission.Status.IN_REVIEW
     submission.save()
+
+    # Notify directors
+    directors = submission.task.project.memberships.filter(
+        role_assignments__role__can_accept_final_assets=True
+    ).distinct()
+    for d in directors:
+        create_notification(
+            membership=d,
+            title="Revised Version Uploaded",
+            message=f"V{next_version_num} uploaded for task {submission.task.code} by {contributor_membership.credited_name}.",
+            link_url=f"/projects/{submission.task.project.slug}/tasks/{submission.task.id}/",
+        )
 
     AuditEvent.objects.create(
         project=submission.task.project,
