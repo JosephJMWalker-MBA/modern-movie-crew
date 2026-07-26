@@ -1,50 +1,127 @@
 # Modern Movie Crew (MMC)
 
-> **A distributed production operating system for generative filmmaking.**
-
-Modern Movie Crew converts scripts into governed, assignable production graphs. Contributors pool creative labor, AI tool expertise, performance, character stewardship, set design, sound, and editorial judgment to produce canonically governed motion pictures.
-
----
-
-## 🎬 Governing Principle
-*"Many members performing distinct functions, yet contributing to one body."* (1 Corinthians 12)
-
-Modern Movie Crew is external-tool agnostic and workflow-first. Generative assets are produced externally by contributors using their own accounts and preferred models (Sora, Runway, Veo, Kling, Suno, ElevenLabs). MMC provides the relational governance, canonical character library, packet specs, version control, review rooms, and credit ledger that turn isolated clips into a cohesive film.
+> **Distributed Production Operating System for Generative Filmmaking**
+>
+> Modern Movie Crew is NOT a simple crowdsourced media generator. It is a distributed production operating system for generative filmmaking. The key engine is **the chain of accountable human decisions between an unfinished need and an accepted film asset**.
 
 ---
 
-## 🛠️ Stack & Architecture
-- **Framework**: Python 3.13 / Django 5.2 LTS
-- **Database**: PostgreSQL (SQLite for local development)
-- **Frontend**: Django Templates + HTMX 2.x + Tailwind CSS
-- **Storage Strategy**: Local storage abstraction for Milestone 1; presigned S3/R2 direct uploads for Milestone 2.
+## Core Principles & Governance Rules
+
+1. **Strict Entity Separation & Hierarchy**:
+   - Hierarchy: `Project` → `Act` → `Sequence` → `Scene` → `ProductionTask`.
+   - **Character Library**: Canonical, versioned source of truth for each character (`Character`, `CharacterIdentityVersion`, `CharacterReferenceAsset`, `CharacterLook`, `VoiceProfile`, `PerformanceProfile`, `CharacterSceneState`, `CharacterTaskLink`, `CharacterRightsRecord`).
+   - Tasks involving a character MUST reference an approved `CharacterIdentityVersion` and, when applicable, the correct `CharacterLook` and `CharacterSceneState`.
+
+2. **Uploading NEVER Auto-Completes a Task**:
+   - `ProductionTask` status: `DRAFT`, `READY`, `OPEN`, `SATISFIED`, `CLOSED`, `CANCELLED`.
+   - `Submission` status: `DRAFT`, `IN_REVIEW`, `REVISION_REQUESTED`, `ACCEPTED`, `ALTERNATE`, `REJECTED`, `WITHDRAWN`.
+   - Revisions create a new immutable `SubmissionVersion`. Revisions belong strictly to the individual `Submission`, never globally to the `ProductionTask`.
+
+3. **Two-Layer Review & Departmental Authority**:
+   - **Department Review**: Department roles review work (`APPROVED`, `ISSUE_FOUND`, `REVISION_RECOMMENDED`) and document responsibility.
+   - **Director Decision**: Director/authorized lead makes final creative decision (`ACCEPT`, `ACCEPT_AS_ALTERNATE`, `REQUEST_REVISION`, `REJECT`).
+
+4. **Immutable Revisions & Provenance**:
+   - Every canonical selection change creates an append-only `CanonicalSelection` record with active/retired tracking (`retired_at__isnull=True`).
+   - `AuditEvent` records are append-only.
 
 ---
 
-## 📚 Core Specifications
-- [AGENTS.md](AGENTS.md) — Mandatory operational constraints for AI coding agents.
-- [Product Constitution](docs/PRODUCT_CONSTITUTION.md) — Product vision, pillars, character library, and scope boundaries.
-- [Domain Model](docs/DOMAIN_MODEL.md) — Relational schema, character library entities, and domain rules.
-- [Workflow & State Machine](docs/WORKFLOW_STATES.md) — Task, character, claim, submission, and review state transitions.
-- [Roles & Permissions Matrix](docs/ROLES_AND_PERMISSIONS.md) — Permissions matrix, departmental authorization, and 5-point boundary validation.
-- [Credit Ledger System](docs/CREDIT_SYSTEM.md) — Provenance tracking & credit rules.
-- [Architecture & Tech Stack](docs/ARCHITECTURE.md) — Monolithic Django layout.
-- [Milestones & Roadmap](docs/MILESTONES.md) — 5-phase implementation roadmap.
-- [Acceptance Tests](docs/ACCEPTANCE_TESTS.md) — Full automated verification matrix.
+## Quickstart & Local Development
 
----
+### Prerequisites
+- Python 3.13+
+- Virtual environment (`venv` or `uv`)
 
-## 🚀 Getting Started (Development)
+### Installation & Setup
 
 ```bash
-# Create virtual environment
+# Clone repository
+git clone https://github.com/JosephJMWalker-MBA/modern-movie-crew.git
+cd modern-movie-crew
+
+# Create and activate virtual environment
 python3 -m venv .venv
 source .venv/bin/activate
 
 # Install dependencies
-pip install django django-htmx pillow
+pip install -r requirements.txt
 
-# Run migrations & server
+# Run database migrations
 python manage.py migrate
+
+# Run system check
+python manage.py check
+
+# Run complete test suite
+python manage.py test
+
+# Start local development server
 python manage.py runserver
 ```
+
+Open [http://127.0.0.1:8000](http://127.0.0.1:8000) in your browser.
+
+---
+
+## Environment Variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `SECRET_KEY` | `django-insecure-...` | Django secret key for cryptographic signing |
+| `DEBUG` | `True` | Debug mode (Set to `False` in production) |
+| `ALLOWED_HOSTS` | `localhost,127.0.0.1` | Comma-separated list of permitted hostnames |
+| `CSRF_TRUSTED_ORIGINS` | `http://localhost:8000` | Comma-separated list of trusted CSRF origins |
+| `DATABASE_URL` | None (uses SQLite) | PostgreSQL connection URI (e.g., `postgres://user:pass@localhost:5432/mmc_db`) |
+| `SECURE_SSL_REDIRECT` | `False` | Enforce HTTPS redirect in production |
+| `LOG_LEVEL` | `INFO` | Console logging level (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
+
+---
+
+## Production Readiness & Security Controls
+
+- **Health Check Endpoint**: `GET /health/` returns `{"status": "healthy", "database": "connected"}`.
+- **CSRF & Security Headers**: HSTS, X-Frame-Options (`DENY`), Content-Type-Options (`nosniff`), XSS protection, and secure cookies enabled when `DEBUG=False`.
+- **Upload Hardening**: MIME validation, filename sanitization, collision-safe storage names, and CSV formula injection protection.
+- **Public Provenance Isolation**: Public views consume published `ProjectProvenanceSnapshot` manifests. Raw internal audit trails, private reviews, rights attestations, tokens, and storage paths are never exposed.
+
+---
+
+## Backup & Restore Procedures
+
+### Database Backup (PostgreSQL)
+```bash
+pg_dump -U <user> -h <host> -d <database_name> -F c -b -v -f mmc_backup_$(date +%Y%m%d).dump
+```
+
+### Database Restore (PostgreSQL)
+```bash
+pg_restore -U <user> -h <host> -d <database_name> -v mmc_backup_YYYYMMDD.dump
+```
+
+---
+
+## Roles & Permissions Matrix
+
+| Authority | Director | Department Head | Contributor | Guest |
+|---|:---:|:---:|:---:|:---:|
+| Assign / Open Tasks | ✅ | ❌ | ❌ | ❌ |
+| Approve Packet Sections | ✅ | ✅ | ❌ | ❌ |
+| Approve Character Identity | ✅ | ✅ | ❌ | ❌ |
+| Submit Asset Version | ✅ | ✅ | ✅ | ❌ |
+| Issue Department Review | ✅ | ✅ | ❌ | ❌ |
+| Issue Director Revision | ✅ | ❌ | ❌ | ❌ |
+| Accept Canonical Asset | ✅ | ❌ | ❌ | ❌ |
+| Publish Provenance Snapshot | ✅ | ❌ | ❌ | ❌ |
+
+---
+
+## Release Checklist
+
+- [x] All database migrations applied (`python manage.py migrate`).
+- [x] Django system deployment check passed (`python manage.py check --deploy`).
+- [x] Complete automated test suite passed (`python manage.py test`).
+- [x] Environment variables configured for production (`SECRET_KEY`, `DEBUG=False`, `ALLOWED_HOSTS`, `DATABASE_URL`).
+- [x] Static files collected (`python manage.py collectstatic`).
+- [x] Health check verified (`/health/`).

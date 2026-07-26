@@ -10,6 +10,18 @@ from apps.credits.models import CreditEntry, ProjectProvenanceSnapshot
 from apps.projects.models import Project
 from services.boundary_services import verify_director_authority, verify_membership_in_project
 
+DANGEROUS_CSV_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
+
+
+def sanitize_csv_cell(val: str) -> str:
+    """Prevents CSV formula injection by prepending a single quote if string starts with dangerous characters."""
+    if not val:
+        return ""
+    val_str = str(val)
+    if val_str.startswith(DANGEROUS_CSV_PREFIXES):
+        return f"'{val_str}"
+    return val_str
+
 
 @transaction.atomic
 def publish_project_provenance_snapshot(
@@ -31,14 +43,8 @@ def publish_project_provenance_snapshot(
         else 1
     )
 
-    # Retire prior active snapshot if any
-    prior_snapshots = project.provenance_snapshots.filter(retired_at__isnull=True)
-    for p in prior_snapshots:
-        # Note: We update retired_at on prior snapshots via QuerySet.update to bypass individual save immutability checks
-        pass
     project.provenance_snapshots.filter(retired_at__isnull=True).update(retired_at=timezone.now())
 
-    # Build public credit entries using explicit allowlist
     eligible_credits = (
         CreditEntry.objects.filter(
             project=project,
@@ -65,7 +71,6 @@ def publish_project_provenance_snapshot(
         if c.contributor.public_handle:
             contributor_handles.add(c.contributor.public_handle)
 
-    # Build canonical assets list
     accepted_tasks = project.tasks.filter(
         canonical_selections__retired_at__isnull=True
     ).prefetch_related("canonical_selections__submission_version__created_by")
@@ -147,7 +152,7 @@ def export_credits_json(snapshot: ProjectProvenanceSnapshot) -> str:
 
 
 def export_credits_csv(snapshot: ProjectProvenanceSnapshot) -> str:
-    """Generates CSV string of public credits from a published provenance snapshot."""
+    """Generates CSV string of public credits with CSV formula injection protection."""
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow([
@@ -163,13 +168,13 @@ def export_credits_csv(snapshot: ProjectProvenanceSnapshot) -> str:
     credits_list = snapshot.manifest_data.get("credits", [])
     for c in credits_list:
         writer.writerow([
-            c.get("credited_name", ""),
-            c.get("public_handle", ""),
-            c.get("role_name", ""),
-            c.get("department_name", ""),
-            c.get("basis", ""),
+            sanitize_csv_cell(c.get("credited_name", "")),
+            sanitize_csv_cell(c.get("public_handle", "")),
+            sanitize_csv_cell(c.get("role_name", "")),
+            sanitize_csv_cell(c.get("department_name", "")),
+            sanitize_csv_cell(c.get("basis", "")),
             "Yes" if c.get("is_final_cut") else "No",
-            c.get("contribution_summary", ""),
+            sanitize_csv_cell(c.get("contribution_summary", "")),
         ])
 
     return output.getvalue()

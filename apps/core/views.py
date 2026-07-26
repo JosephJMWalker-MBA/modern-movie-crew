@@ -3,12 +3,34 @@ from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import UserCreationForm
 from django.core.paginator import Paginator
+from django.db import connection
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils.http import url_has_allowed_host_and_scheme
 
 from apps.core.models import AuditEvent, Notification
 from apps.projects.models import Membership, Project
 
 SENSITIVE_METADATA_KEYS = {"token", "storage_key", "password", "secret", "seed"}
+
+
+def health_check_view(request):
+    try:
+        connection.ensure_connection()
+        db_status = "connected"
+    except Exception as e:
+        db_status = f"error: {str(e)}"
+        return JsonResponse({"status": "unhealthy", "database": db_status}, status=503)
+
+    return JsonResponse({"status": "healthy", "database": db_status})
+
+
+def custom_404_view(request, exception=None):
+    return render(request, "404.html", status=404)
+
+
+def custom_500_view(request):
+    return render(request, "500.html", status=500)
 
 
 def dashboard_view(request):
@@ -17,6 +39,7 @@ def dashboard_view(request):
 
 
 def register_view(request):
+    next_url = request.GET.get("next", "")
     if request.method == "POST":
         form = UserCreationForm(request.POST)
         if form.is_valid():
@@ -24,6 +47,10 @@ def register_view(request):
             user.display_name = user.username
             user.save()
             login(request, user)
+
+            # Prevent open redirects
+            if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+                return redirect(next_url)
             return redirect("dashboard")
     else:
         form = UserCreationForm()
@@ -72,7 +99,6 @@ def activity_feed_view(request, slug):
     page_number = request.GET.get("page", 1)
     events_page = paginator.get_page(page_number)
 
-    # Sanitize metadata for privacy (remove tokens, storage keys, sensitive info)
     sanitized_events = []
     for event in events_page:
         clean_meta = {

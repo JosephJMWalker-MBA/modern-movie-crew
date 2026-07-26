@@ -11,8 +11,13 @@ from apps.projects import views as proj_views
 from apps.projects import views_public as pub_views
 from apps.submissions import views as sub_views
 
+handler404 = "apps.core.views.custom_404_view"
+handler500 = "apps.core.views.custom_500_view"
+
 urlpatterns = [
     path("admin/", admin.site.urls),
+    # System Health Check
+    path("health/", core_views.health_check_view, name="health_check"),
     # Core, Auth & Notifications
     path("", core_views.dashboard_view, name="dashboard"),
     path("register/", core_views.register_view, name="register"),
