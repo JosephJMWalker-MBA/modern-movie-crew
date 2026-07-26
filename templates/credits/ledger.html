@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}Credit Ledger — {{ project.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-8">
+    <h1 class="text-3xl font-bold text-white mb-1">Project Credit Ledger & Audit Trail</h1>
+    <p class="text-sm text-slate-400">Atomic, verified contribution records derived from real production actions.</p>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <!-- Credit Ledger -->
+    <div class="lg:col-span-2 bg-slate-800 border border-slate-700 rounded-lg p-6">
+        <h3 class="text-lg font-bold text-white mb-4">Verified Contribution Credits</h3>
+        <div class="space-y-3">
+            {% for c in credits_list %}
+                <div class="p-4 bg-slate-900/60 rounded border border-slate-700/60 flex items-center justify-between">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="font-bold text-white">{{ c.credited_name }}</span>
+                            <span class="text-xs text-amber-400 font-semibold">({{ c.role_name }})</span>
+                        </div>
+                        <p class="text-xs text-slate-300 mt-1">{{ c.contribution_summary }}</p>
+                        <span class="text-[10px] text-slate-500 block mt-1">Department: {{ c.department_name }} | Basis: {{ c.basis }}</span>
+                    </div>
+                    <span class="text-xs font-semibold px-2.5 py-1 rounded bg-emerald-950 text-emerald-300 border border-emerald-800">
+                        {{ c.status }}
+                    </span>
+                </div>
+            {% empty %}
+                <div class="text-xs text-slate-500">No credits recorded yet.</div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Audit Events -->
+    <div class="bg-slate-800 border border-slate-700 rounded-lg p-6">
+        <h3 class="text-lg font-bold text-white mb-4">Append-Only Audit Log</h3>
+        <div class="space-y-3 text-xs font-mono">
+            {% for ae in audit_events %}
+                <div class="p-3 bg-slate-900/80 rounded border border-slate-800">
+                    <span class="text-amber-400 font-bold block">{{ ae.event_type }}</span>
+                    <span class="text-slate-400 block">{{ ae.created_at|date:"H:i:s" }} by {{ ae.actor.credited_name|default:"System" }}</span>
+                    <span class="text-slate-500 text-[10px] block mt-1">Obj: {{ ae.object_type }}:{{ ae.object_id }}</span>
+                </div>
+            {% empty %}
+                <div class="text-slate-500">No audit events logged.</div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

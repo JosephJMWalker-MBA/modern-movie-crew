@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block title %}Task {{ task.code }} — {{ project.name }}{% endblock %}
+
+{% block content %}
+<!-- Task Header -->
+<div class="bg-slate-800 border border-slate-700 rounded-lg p-6 mb-8">
+    <div class="flex items-center justify-between mb-2">
+        <div>
+            <span class="text-xs uppercase tracking-wider font-semibold text-amber-400">Task {{ task.code }}</span>
+            <h1 class="text-2xl font-bold text-white">{{ task.title }}</h1>
+        </div>
+        <div class="flex items-center gap-3">
+            <span class="text-xs uppercase px-3 py-1 rounded font-bold border {% if task.status == 'satisfied' %}bg-emerald-950 text-emerald-300 border-emerald-800{% elif task.status == 'open' %}bg-amber-950 text-amber-300 border-amber-800{% else %}bg-slate-700 text-slate-300 border-slate-600{% endif %}">
+                {{ task.status }}
+            </span>
+            {% if task.status == 'draft' %}
+                <form action="{% url 'open_task' project.slug task.id %}" method="post">
+                    {% csrf_token %}
+                    <button type="submit" class="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-3 py-1.5 rounded text-xs">
+                        Open Task for Claims
+                    </button>
+                </form>
+            {% elif task.status == 'open' %}
+                <form action="{% url 'claim_task' project.slug task.id %}" method="post">
+                    {% csrf_token %}
+                    <button type="submit" class="bg-amber-600 hover:bg-amber-500 text-white font-semibold px-3 py-1.5 rounded text-xs">
+                        Claim Task
+                    </button>
+                </form>
+                <a href="{% url 'upload_v1' project.slug task.id %}" class="bg-blue-600 hover:bg-blue-500 text-white font-semibold px-3 py-1.5 rounded text-xs">
+                    Upload Submission V1
+                </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Active Canonical Selection (If Any) -->
+{% if active_canonical %}
+    <div class="bg-emerald-950/60 border border-emerald-800/80 rounded-lg p-6 mb-8">
+        <h3 class="text-lg font-bold text-emerald-300 mb-2">⭐ Active Canonical Asset</h3>
+        <p class="text-sm text-slate-300 mb-2">
+            Canonical Version: <span class="font-semibold text-white">v{{ active_canonical.submission_version.version_number }}</span>
+            | Selected by: <span class="text-emerald-400 font-semibold">{{ active_canonical.selected_by.credited_name }}</span>
+        </p>
+        <div class="p-3 bg-slate-900/80 rounded border border-slate-800 text-xs font-mono text-slate-300">
+            Storage Key: {{ active_canonical.submission_version.storage_key }}<br>
+            Prompt Used: {{ active_canonical.submission_version.prompt_used }}
+        </div>
+    </div>
+{% endif %}
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+    <!-- Packet Sections -->
+    <div class="bg-slate-800 border border-slate-700 rounded-lg p-6">
+        <h3 class="text-lg font-bold text-white mb-4">Production Packet Sections</h3>
+        <div class="space-y-4">
+            {% for s in sections %}
+                <div class="p-4 bg-slate-900/60 rounded border border-slate-700/60">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="font-semibold text-amber-400 text-sm capitalize">{{ s.section_type }} Section</span>
+                        <span class="text-xs font-semibold px-2 py-0.5 rounded {% if s.status == 'approved' %}bg-emerald-950 text-emerald-300 border border-emerald-800{% else %}bg-slate-700 text-slate-400{% endif %}">
+                            {{ s.status }}
+                        </span>
+                    </div>
+                    <p class="text-xs text-slate-300 mb-3">{{ s.content }}</p>
+                    {% if s.status != 'approved' %}
+                        <form action="{% url 'approve_packet_section' project.slug s.id %}" method="post">
+                            {% csrf_token %}
+                            <button type="submit" class="text-xs bg-emerald-600 hover:bg-emerald-500 text-white px-2 py-1 rounded">
+                                Approve Packet Section
+                            </button>
+                        </form>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Submissions & Revisions -->
+    <div class="bg-slate-800 border border-slate-700 rounded-lg p-6">
+        <h3 class="text-lg font-bold text-white mb-4">Submissions & Versions</h3>
+        <div class="space-y-6">
+            {% for sub in submissions %}
+                <div class="p-4 bg-slate-900/60 rounded border border-slate-700/60">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs text-slate-400">Contributor: <strong class="text-white">{{ sub.contributor.credited_name }}</strong></span>
+                        <span class="text-xs font-semibold uppercase px-2 py-0.5 rounded {% if sub.status == 'accepted' %}bg-emerald-950 text-emerald-300 border border-emerald-800{% elif sub.status == 'revision_requested' %}bg-red-950 text-red-300 border border-red-800{% else %}bg-slate-700 text-slate-300{% endif %}">
+                            {{ sub.status }}
+                        </span>
+                    </div>
+
+                    <!-- Version list -->
+                    <div class="space-y-3 mt-3">
+                        {% for v in sub.versions.all %}
+                            <div class="p-3 bg-slate-800/80 rounded border border-slate-700 text-xs">
+                                <div class="flex items-center justify-between mb-1">
+                                    <span class="font-bold text-amber-400">Version {{ v.version_number }}</span>
+                                    <span class="text-slate-500">{{ v.created_at|date:"M d, H:i" }}</span>
+                                </div>
+                                <div class="text-slate-300 mb-2 font-mono">File: {{ v.storage_key }}</div>
+
+                                <!-- Actions for Version -->
+                                <div class="flex items-center gap-2 pt-2 border-t border-slate-700/60">
+                                    <a href="{% url 'department_review' project.slug v.id %}" class="bg-slate-700 hover:bg-slate-600 text-white px-2 py-1 rounded">
+                                        Dept Review
+                                    </a>
+                                    <a href="{% url 'director_revision' project.slug v.id %}" class="bg-red-900/80 hover:bg-red-800 text-red-200 px-2 py-1 rounded">
+                                        Request Revision
+                                    </a>
+                                    <a href="{% url 'director_accept' project.slug v.id %}" class="bg-emerald-700 hover:bg-emerald-600 text-white px-2 py-1 rounded font-semibold">
+                                        Accept Canonical
+                                    </a>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+
+                    {% if sub.status == 'revision_requested' %}
+                        <div class="mt-4 pt-3 border-t border-slate-700">
+                            <a href="{% url 'upload_v2' project.slug sub.id %}" class="inline-block bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs px-3 py-1.5 rounded">
+                                Upload Revised Version (V2) →
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            {% empty %}
+                <div class="text-xs text-slate-500">No submissions uploaded yet.</div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

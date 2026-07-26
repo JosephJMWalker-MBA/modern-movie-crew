@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block title %}Create Project — Modern Movie Crew{% endblock %}
+
+{% block content %}
+<div class="max-w-xl mx-auto bg-slate-800 border border-slate-700 rounded-lg p-6">
+    <h2 class="text-2xl font-bold text-white mb-6">Launch New Film Project</h2>
+    <form method="post" class="space-y-4">
+        {% csrf_token %}
+        <div>
+            <label class="block text-sm font-medium text-slate-300 mb-1">Film Title</label>
+            <input type="text" name="name" required placeholder="e.g., Lunar Station 14" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-white focus:outline-none focus:border-amber-500">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-300 mb-1">Synopsis / Premise</label>
+            <textarea name="synopsis" rows="4" placeholder="Brief story overview..." class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-white focus:outline-none focus:border-amber-500"></textarea>
+        </div>
+        <div class="pt-4 flex justify-end gap-3">
+            <a href="{% url 'dashboard' %}" class="px-4 py-2 text-slate-400 hover:text-white">Cancel</a>
+            <button type="submit" class="bg-amber-600 hover:bg-amber-500 text-white font-semibold px-5 py-2 rounded">
+                Initialize Project
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

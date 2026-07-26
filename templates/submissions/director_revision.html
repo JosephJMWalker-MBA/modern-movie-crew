@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}Request Revision — Version {{ version.version_number }}{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto bg-slate-800 border border-slate-700 rounded-lg p-6">
+    <h2 class="text-xl font-bold text-white mb-2">Request Revision (Director)</h2>
+    <p class="text-xs text-slate-400 mb-6">Task: {{ version.submission.task.code }} | Version {{ version.version_number }}</p>
+
+    <form method="post" class="space-y-4">
+        {% csrf_token %}
+        <div>
+            <label class="block text-sm font-medium text-slate-300 mb-1">Director Revision Notes</label>
+            <textarea name="notes" rows="4" required placeholder="Specify needed changes for Take 2 (e.g., adjust camera height, fix airlock helmet color)..." class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-white"></textarea>
+        </div>
+        <button type="submit" class="w-full bg-red-800 hover:bg-red-700 text-white font-semibold py-2 rounded">
+            Issue Revision Request
+        </button>
+    </form>
+</div>
+{% endblock %}

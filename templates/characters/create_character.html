@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}New Character — {{ project.name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto bg-slate-800 border border-slate-700 rounded-lg p-6">
+    <h2 class="text-xl font-bold text-white mb-4">Create New Character</h2>
+    <form method="post" class="space-y-4">
+        {% csrf_token %}
+        <div>
+            <label class="block text-sm font-medium text-slate-300 mb-1">Character Name</label>
+            <input type="text" name="name" required placeholder="e.g. Imani" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-white">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-300 mb-1">Character Description</label>
+            <textarea name="description" rows="3" placeholder="Lead astronaut..." class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-white"></textarea>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-300 mb-1">Facial / Identity Notes (v1)</label>
+            <textarea name="facial_notes" rows="3" placeholder="High cheekbones, dark eyes, retrofuturist suit..." class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-white"></textarea>
+        </div>
+        <button type="submit" class="w-full bg-amber-600 hover:bg-amber-500 text-white font-semibold py-2 rounded">
+            Create Character & Identity v1
+        </button>
+    </form>
+</div>
+{% endblock %}

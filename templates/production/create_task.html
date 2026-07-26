@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}Create Task — {{ project.name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto bg-slate-800 border border-slate-700 rounded-lg p-6">
+    <h2 class="text-xl font-bold text-white mb-4">Create Production Task / Shot</h2>
+    <form method="post" class="space-y-4">
+        {% csrf_token %}
+        <div>
+            <label class="block text-sm font-medium text-slate-300 mb-1">Task Code</label>
+            <input type="text" name="code" required placeholder="e.g. SC14_SH03" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-white">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-300 mb-1">Shot Title / Action</label>
+            <input type="text" name="title" required placeholder="e.g. Lunar Airlock Exterior Shot" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-white">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-300 mb-1">Deliverable Type</label>
+            <select name="task_type" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-white">
+                <option value="video">Cinematic Video Footage</option>
+                <option value="audio">Audio / Sound Effect</option>
+                <option value="score">Music Cue / Score</option>
+            </select>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-300 mb-1">Link Character (Optional)</label>
+            <select name="character_id" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-white">
+                <option value="">-- No Character --</option>
+                {% for c in characters %}
+                    <option value="{{ c.id }}">{{ c.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="w-full bg-amber-600 hover:bg-amber-500 text-white font-semibold py-2 rounded">
+            Create Task & Story Packet
+        </button>
+    </form>
+</div>
+{% endblock %}

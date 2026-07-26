@@ -1,10 +1,43 @@
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
-from django.urls import include, path
+from django.urls import path
+
+from apps.characters import views as char_views
+from apps.core import views as core_views
+from apps.credits import views as credit_views
+from apps.production import views as prod_views
+from apps.projects import views as proj_views
+from apps.submissions import views as sub_views
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    # Core & Auth
+    path("", core_views.dashboard_view, name="dashboard"),
+    path("register/", core_views.register_view, name="register"),
+    # Projects
+    path("projects/new/", proj_views.create_project_view, name="create_project"),
+    path("projects/<slug:slug>/", proj_views.project_detail_view, name="project_detail"),
+    path("projects/<slug:slug>/crew/add/", proj_views.add_crew_member_view, name="add_crew_member"),
+    # Characters
+    path("projects/<slug:slug>/characters/", char_views.character_list_view, name="character_list"),
+    path("projects/<slug:slug>/characters/new/", char_views.create_character_view, name="create_character"),
+    path("projects/<slug:slug>/characters/<int:identity_id>/approve/", char_views.approve_identity_view, name="approve_character_identity"),
+    # Production Board & Tasks
+    path("projects/<slug:slug>/board/", prod_views.project_board_view, name="project_board"),
+    path("projects/<slug:slug>/tasks/new/", prod_views.create_task_view, name="create_task"),
+    path("projects/<slug:slug>/tasks/<int:task_id>/", prod_views.task_detail_view, name="task_detail"),
+    path("projects/<slug:slug>/sections/<int:section_id>/approve/", prod_views.approve_section_view, name="approve_packet_section"),
+    path("projects/<slug:slug>/tasks/<int:task_id>/open/", prod_views.open_task_view, name="open_task"),
+    path("projects/<slug:slug>/tasks/<int:task_id>/claim/", prod_views.claim_task_view, name="claim_task"),
+    # Submissions & Reviews
+    path("projects/<slug:slug>/tasks/<int:task_id>/upload/", sub_views.upload_v1_view, name="upload_v1"),
+    path("projects/<slug:slug>/versions/<int:version_id>/dept-review/", sub_views.department_review_view, name="department_review"),
+    path("projects/<slug:slug>/versions/<int:version_id>/revision/", sub_views.director_revision_view, name="director_revision"),
+    path("projects/<slug:slug>/submissions/<int:submission_id>/upload-v2/", sub_views.upload_v2_view, name="upload_v2"),
+    path("projects/<slug:slug>/versions/<int:version_id>/accept/", sub_views.director_accept_view, name="director_accept"),
+    # Credits & Ledger
+    path("projects/<slug:slug>/credits/", credit_views.credit_ledger_view, name="credit_ledger"),
 ]
 
 if settings.DEBUG:

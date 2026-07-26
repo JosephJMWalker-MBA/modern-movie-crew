@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}Upload V1 — {{ task.code }}{% endblock %}
+
+{% block content %}
+<div class="max-w-lg mx-auto bg-slate-800 border border-slate-700 rounded-lg p-6">
+    <h2 class="text-xl font-bold text-white mb-2">Upload Submission V1</h2>
+    <p class="text-xs text-slate-400 mb-6">Task: <strong class="text-amber-400">{{ task.code }}</strong> - {{ task.title }}</p>
+
+    <form method="post" enctype="multipart/form-data" class="space-y-4">
+        {% csrf_token %}
+        <div>
+            <label class="block text-sm font-medium text-slate-300 mb-1">Select Media File (Footage / Audio)</label>
+            <input type="file" name="media_file" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-slate-300 text-xs">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-300 mb-1">External Model / Generator Used</label>
+            <input type="text" name="external_tool" value="Sora" required class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-white">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-300 mb-1">Generation Prompt Used</label>
+            <textarea name="prompt_used" rows="3" placeholder="Exact prompt entered into model..." class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-white"></textarea>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-300 mb-1">Seed (Optional)</label>
+            <input type="text" name="seed" placeholder="123456789" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-white">
+        </div>
+
+        <div class="p-4 bg-slate-900/80 rounded border border-slate-700 text-xs text-slate-300 space-y-2">
+            <h4 class="font-semibold text-amber-400">Legal Attestation</h4>
+            <label class="flex items-center gap-2">
+                <input type="checkbox" checked required>
+                I confirm authority to upload and license this generation.
+            </label>
+            <label class="flex items-center gap-2">
+                <input type="checkbox" checked required>
+                External model terms permit commercial use.
+            </label>
+        </div>
+
+        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2 rounded">
+            Upload Submission V1
+        </button>
+    </form>
+</div>
+{% endblock %}

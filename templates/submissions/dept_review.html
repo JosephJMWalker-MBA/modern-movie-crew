@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}Department Review — Version {{ version.version_number }}{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto bg-slate-800 border border-slate-700 rounded-lg p-6">
+    <h2 class="text-xl font-bold text-white mb-2">Department Review</h2>
+    <p class="text-xs text-slate-400 mb-6">Task: {{ version.submission.task.code }} | Version {{ version.version_number }}</p>
+
+    <form method="post" class="space-y-4">
+        {% csrf_token %}
+        <div>
+            <label class="block text-sm font-medium text-slate-300 mb-1">Department Decision</label>
+            <select name="decision" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-white">
+                <option value="approved">APPROVED — Technical & Departmental Fidelity Passed</option>
+                <option value="issue_found">ISSUE_FOUND — Continuity/Wardrobe Mismatch</option>
+                <option value="revision_recommended">REVISION_RECOMMENDED — Adjust Lighting/Framing</option>
+            </select>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-300 mb-1">Review Notes & Advisory</label>
+            <textarea name="notes" rows="3" placeholder="Department technical notes..." class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-white"></textarea>
+        </div>
+        <button type="submit" class="w-full bg-amber-600 hover:bg-amber-500 text-white font-semibold py-2 rounded">
+            Submit Department Review
+        </button>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}Accept Version {{ version.version_number }} — {{ project.name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto bg-slate-800 border border-slate-700 rounded-lg p-6">
+    <h2 class="text-xl font-bold text-white mb-2">Director Acceptance</h2>
+    <p class="text-xs text-slate-400 mb-6">Promote Version {{ version.version_number }} of task {{ version.submission.task.code }} to Canonical Asset.</p>
+
+    <form method="post" class="space-y-4">
+        {% csrf_token %}
+        <div>
+            <label class="block text-sm font-medium text-slate-300 mb-1">Acceptance Notes & Selection Reason</label>
+            <textarea name="notes" rows="3" placeholder="Reason for canonical selection..." class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-white"></textarea>
+        </div>
+        <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2 rounded">
+            Accept as Canonical Asset & Record Credit
+        </button>
+    </form>
+</div>
+{% endblock %}

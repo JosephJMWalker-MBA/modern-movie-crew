@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}Production Board — {{ project.name }}{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-between mb-8">
+    <div>
+        <h1 class="text-3xl font-bold text-white mb-1">Production Board</h1>
+        <p class="text-sm text-slate-400">Act → Sequence → Scene → Production Task Graph.</p>
+    </div>
+    <a href="{% url 'create_task' project.slug %}" class="bg-amber-600 hover:bg-amber-500 text-white font-semibold px-4 py-2 rounded text-sm">
+        + New Task / Shot
+    </a>
+</div>
+
+{% for act in acts %}
+    <div class="mb-8 border border-slate-700 rounded-lg bg-slate-800/80 p-6">
+        <h2 class="text-xl font-bold text-amber-400 mb-4">{{ act.title|default:"Act I" }}</h2>
+        {% for seq in act.sequences.all %}
+            <div class="mb-6 pl-4 border-l-2 border-slate-700">
+                <h3 class="text-lg font-bold text-white mb-3">{{ seq.title|default:"Sequence A" }}</h3>
+                {% for sc in seq.scenes.all %}
+                    <div class="mb-4 bg-slate-900/60 p-4 rounded border border-slate-700/60">
+                        <h4 class="text-md font-semibold text-slate-300 mb-3">Scene {{ sc.scene_number }}: {{ sc.title }}</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {% for t in sc.tasks.all %}
+                                <div class="bg-slate-800 p-4 rounded border border-slate-700 flex flex-col justify-between">
+                                    <div>
+                                        <div class="flex items-center justify-between mb-2">
+                                            <span class="font-bold text-amber-400 text-sm">{{ t.code }}</span>
+                                            <span class="text-xs uppercase px-2 py-0.5 rounded font-semibold {% if t.status == 'satisfied' %}bg-emerald-950 text-emerald-300 border border-emerald-800{% elif t.status == 'open' %}bg-amber-950 text-amber-300 border border-amber-800{% else %}bg-slate-700 text-slate-300{% endif %}">
+                                                {{ t.status }}
+                                            </span>
+                                        </div>
+                                        <h5 class="text-sm font-semibold text-white mb-2">{{ t.title }}</h5>
+                                    </div>
+                                    <div class="pt-3 border-t border-slate-700/60 flex items-center justify-between">
+                                        <span class="text-xs text-slate-500">{{ t.task_type }}</span>
+                                        <a href="{% url 'task_detail' project.slug t.id %}" class="text-xs bg-slate-700 hover:bg-slate-600 text-white px-2 py-1 rounded">
+                                            Open Task →
+                                        </a>
+                                    </div>
+                                </div>
+                            {% empty %}
+                                <div class="text-xs text-slate-500 col-span-3">No tasks created in this scene.</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endfor %}
+    </div>
+{% empty %}
+    <div class="text-center py-16 bg-slate-800/50 rounded-lg border border-dashed border-slate-700">
+        <h3 class="text-lg font-semibold text-slate-300 mb-2">Production Graph Empty</h3>
+        <p class="text-sm text-slate-500 mb-6">Create your first task or shot to populate the production board.</p>
+        <a href="{% url 'create_task' project.slug %}" class="bg-amber-600 hover:bg-amber-500 text-white font-semibold px-4 py-2 rounded text-sm">
+            Create Task
+        </a>
+    </div>
+{% endfor %}
+{% endblock %}
