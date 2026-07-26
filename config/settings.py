@@ -86,7 +86,6 @@ TEMPLATES = [
 WSGI_APPLICATION = "config.wsgi.application"
 
 # Database
-# Support DATABASE_URL environment variable if provided, fallback to SQLite for local development
 DATABASE_URL = os.environ.get("DATABASE_URL")
 if DATABASE_URL:
     import urllib.parse
@@ -110,6 +109,11 @@ else:
     }
 
 AUTH_USER_MODEL = "accounts.User"
+
+# Authentication Redirect URLs
+LOGIN_URL = "login"
+LOGIN_REDIRECT_URL = "dashboard"
+LOGOUT_REDIRECT_URL = "dashboard"
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [

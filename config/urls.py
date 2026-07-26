@@ -1,7 +1,7 @@
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
-from django.urls import path
+from django.urls import include, path
 
 from apps.characters import views as char_views
 from apps.core import views as core_views
@@ -16,6 +16,8 @@ handler500 = "apps.core.views.custom_500_view"
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    # Built-in Auth URLs (login, logout, password resets)
+    path("accounts/", include("django.contrib.auth.urls")),
     # System Health Check
     path("health/", core_views.health_check_view, name="health_check"),
     # Core, Auth & Notifications
