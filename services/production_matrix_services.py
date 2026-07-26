@@ -1,5 +1,6 @@
-from apps.production.models import ProductionTask, Scene, ScriptVersion
+from apps.production.models import CoveragePlan, ProductionTask, Scene, ScriptVersion
 from apps.projects.models import Department
+from services.shot_planning_services import detect_editorial_completeness_warnings
 
 
 def get_production_planning_matrix(*, project, filters: dict = None) -> dict:
@@ -20,6 +21,7 @@ def get_production_planning_matrix(*, project, filters: dict = None) -> dict:
         "submissions__versions",
         "character_links__character",
         "script_links",
+        "shot_links__shot",
     )
 
     # Filter application
@@ -48,7 +50,6 @@ def get_production_planning_matrix(*, project, filters: dict = None) -> dict:
             return "unplanned"
         statuses = [t.status for t in tasks_list]
 
-        # Check for accepted canonical selection
         if any(t.active_canonical_selection() for t in tasks_list):
             return "accepted"
         if any(s == "satisfied" for s in statuses):
@@ -63,6 +64,21 @@ def get_production_planning_matrix(*, project, filters: dict = None) -> dict:
             return "ready"
         return "draft"
 
+    # Pre-fetch coverage plans and shots per scene
+    plans = list(CoveragePlan.objects.filter(project=project).prefetch_related(
+        "shots__task_links__task__canonical_selections",
+        "segment_links",
+        "warning_waivers",
+    ))
+
+    # Build scene to shots lookup
+    scene_plans_map = {}
+    for p in plans:
+        link = p.segment_links.first()
+        if link and link.start_segment and link.start_segment.scene_id:
+            s_id = link.start_segment.scene_id
+            scene_plans_map.setdefault(s_id, []).append(p)
+
     matrix_rows = []
     total_scenes = len(scenes)
     fully_planned_scenes = 0
@@ -70,6 +86,9 @@ def get_production_planning_matrix(*, project, filters: dict = None) -> dict:
     unplanned_scenes = 0
 
     duplicate_warnings = []
+    total_shots_count = 0
+    total_accepted_shots_count = 0
+    total_editorial_warnings_count = 0
 
     for scene in scenes:
         row_cells = []
@@ -107,11 +126,31 @@ def get_production_planning_matrix(*, project, filters: dict = None) -> dict:
         else:
             unplanned_scenes += 1
 
+        # Scene shot coverage metrics
+        scene_plans = scene_plans_map.get(scene.id, [])
+        scene_shots = []
+        scene_warnings = []
+        for p in scene_plans:
+            scene_shots.extend(list(p.shots.all()))
+            scene_warnings.extend(detect_editorial_completeness_warnings(coverage_plan=p))
+
+        scene_shots_count = len(scene_shots)
+        accepted_shots_count = sum(
+            1 for s in scene_shots if any(l.task.active_canonical_selection() for l in s.task_links.all())
+        )
+
+        total_shots_count += scene_shots_count
+        total_accepted_shots_count += accepted_shots_count
+        total_editorial_warnings_count += len(scene_warnings)
+
         matrix_rows.append({
             "scene": scene,
             "cells": row_cells,
             "scene_task_count": scene_task_count,
             "depts_planned_count": len(scene_depts_planned),
+            "scene_shots_count": scene_shots_count,
+            "accepted_shots_count": accepted_shots_count,
+            "scene_warnings_count": len(scene_warnings),
         })
 
     doc = project.script_documents.order_by("-created_at").first()
@@ -136,6 +175,9 @@ def get_production_planning_matrix(*, project, filters: dict = None) -> dict:
         "partially_planned_scenes": partially_planned_scenes,
         "unplanned_scenes": unplanned_scenes,
         "unresolved_character_mentions_count": unresolved_character_mentions_count,
+        "total_shots_count": total_shots_count,
+        "total_accepted_shots_count": total_accepted_shots_count,
+        "total_editorial_warnings_count": total_editorial_warnings_count,
         "duplicate_warnings": duplicate_warnings,
         "coverage_pct": coverage_pct,
     }

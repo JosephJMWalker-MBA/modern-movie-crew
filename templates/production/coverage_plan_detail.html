@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+
+{% block title %}{{ plan.title }} — Coverage Plan{% endblock %}
+
+{% block content %}
+<div class="space-y-6 font-sans">
+    <!-- Header -->
+    <div class="flex items-center justify-between bg-slate-800 border border-slate-700 rounded-lg p-4">
+        <div>
+            <div class="flex items-center gap-2">
+                <h1 class="text-xl font-bold text-white">{{ plan.title }}</h1>
+                <span class="px-2 py-0.5 rounded text-xs font-semibold 
+                    {% if plan.status == 'approved' %}bg-emerald-950 text-emerald-300 border border-emerald-700
+                    {% elif plan.status == 'stale' %}bg-amber-950 text-amber-300 border border-amber-800
+                    {% else %}bg-slate-700 text-slate-300{% endif %}">
+                    {{ plan.get_status_display }}
+                </span>
+            </div>
+            <p class="text-xs text-slate-400 mt-1">Script Version v{{ plan.script_version.version_number }} &bull; Created by {{ plan.created_by.credited_name }}</p>
+        </div>
+        <a href="{% url 'script_workspace' project.slug %}" class="bg-slate-700 hover:bg-slate-600 text-white font-semibold text-xs px-4 py-2 rounded">
+            Script Workspace
+        </a>
+    </div>
+
+    <!-- Editorial Strategy -->
+    {% if plan.editorial_strategy %}
+        <div class="bg-slate-800 border border-slate-700 rounded-lg p-4">
+            <h3 class="text-xs font-bold text-amber-400 uppercase tracking-wider mb-1">Editorial Strategy</h3>
+            <p class="text-xs text-slate-300 leading-relaxed">{{ plan.editorial_strategy }}</p>
+        </div>
+    {% endif %}
+
+    <!-- Editorial Completeness Warnings & Waivers -->
+    {% if warnings %}
+        <div class="bg-amber-950/70 border border-amber-800 rounded-lg p-4 space-y-3">
+            <h3 class="text-sm font-bold text-amber-300">Editorial Completeness Warnings ({{ warnings|length }})</h3>
+
+            {% for w in warnings %}
+                <div class="p-3 bg-slate-900 border border-amber-900 rounded text-xs space-y-2">
+                    <div class="flex items-center justify-between">
+                        <span class="font-bold text-amber-400">{{ w.title }} [{{ w.code }}]</span>
+                    </div>
+                    <p class="text-slate-300">{{ w.message }}</p>
+
+                    {% if actor_membership.role.can_accept_final_assets %}
+                        <form method="post" action="{% url 'waive_warning' project.slug plan.id %}" class="flex gap-2 pt-1 border-t border-slate-800">
+                            {% csrf_token %}
+                            <input type="hidden" name="warning_code" value="{{ w.code }}">
+                            <input type="text" name="reason" placeholder="Director rationale for waiver..." required class="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-white text-[11px]">
+                            <button type="submit" class="bg-amber-600 hover:bg-amber-500 text-white font-semibold px-3 py-1 rounded text-[10px] whitespace-nowrap">
+                                Waive Warning
+                            </button>
+                        </form>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <!-- Active Waivers -->
+    {% if waivers %}
+        <div class="bg-slate-800 border border-slate-700 rounded-lg p-4 space-y-2">
+            <h3 class="text-xs font-bold text-purple-400 uppercase tracking-wider">Recorded Director Waivers</h3>
+            {% for waiver in waivers %}
+                <div class="text-xs text-slate-300 bg-slate-900 p-2 rounded border border-slate-700">
+                    <span class="font-bold text-purple-300">[{{ waiver.warning_code }}]</span> waived by {{ waiver.waived_by.credited_name }}:
+                    <span class="italic text-slate-400">"{{ waiver.reason }}"</span>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <!-- Shot Definitions List -->
+    <div class="bg-slate-800 border border-slate-700 rounded-lg p-6 space-y-4">
+        <h3 class="text-base font-bold text-white">Planned Shots ({{ shots|length }})</h3>
+
+        <div class="space-y-4">
+            {% for shot in shots %}
+                <div class="p-4 bg-slate-900 border border-slate-700 rounded-lg space-y-3">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <span class="font-mono font-bold text-amber-400 text-sm">#{{ shot.sequence_order }} &bull; {{ shot.shot_code }}</span>
+                            <span class="font-bold text-white text-sm">{{ shot.title }}</span>
+                            <span class="bg-slate-800 border border-slate-700 text-slate-300 text-[10px] px-2 py-0.5 rounded font-semibold">
+                                {{ shot.get_shot_category_display }}
+                            </span>
+                            {% if shot.is_required %}
+                                <span class="bg-red-950 text-red-300 border border-red-800 text-[9px] px-1.5 py-0.5 rounded">Required</span>
+                            {% endif %}
+                        </div>
+
+                        <span class="text-xs text-slate-400">{{ shot.duration_target_seconds }}s target</span>
+                    </div>
+
+                    {% if shot.editorial_purpose %}
+                        <p class="text-xs text-slate-300 leading-relaxed">{{ shot.editorial_purpose }}</p>
+                    {% endif %}
+
+                    <!-- Linked Tasks -->
+                    <div class="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-800 text-xs">
+                        <span class="text-slate-400 text-[11px]">Tasks:</span>
+                        {% for link in shot.task_links.all %}
+                            <a href="{% url 'task_detail' project.slug link.task.id %}" class="inline-flex items-center gap-1 bg-emerald-950 border border-emerald-700 text-emerald-300 text-[10px] px-2 py-0.5 rounded font-semibold hover:bg-emerald-900">
+                                {{ link.task.code }} [{{ link.task.status }}]
+                            </a>
+                        {% empty %}
+                            <span class="text-[10px] text-slate-500">No task created yet</span>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Create Task Form from Shot -->
+                    <div class="pt-2 border-t border-slate-800/60">
+                        <form method="post" action="{% url 'create_task_from_shot' project.slug shot.id %}" class="grid grid-cols-1 sm:grid-cols-5 gap-2">
+                            {% csrf_token %}
+                            <input type="text" name="code" placeholder="TASK-{{ shot.shot_code }}" required class="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-white text-[11px]">
+                            <input type="text" name="title" value="Generate {{ shot.title }}" required class="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-white text-[11px]">
+                            <select name="department_id" required class="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-white text-[11px]">
+                                {% for d in departments %}
+                                    <option value="{{ d.id }}">{{ d.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <select name="task_type" class="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-white text-[11px]">
+                                <option value="video">Video Generation</option>
+                                <option value="voice">Voice / Audio</option>
+                                <option value="wardrobe">Costume / Wardrobe</option>
+                                <option value="concept">Art Concept</option>
+                            </select>
+                            <button type="submit" class="bg-amber-600 hover:bg-amber-500 text-white font-semibold py-1 rounded text-[10px]">
+                                + Create Task
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

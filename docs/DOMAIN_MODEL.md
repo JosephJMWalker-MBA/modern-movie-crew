@@ -13,8 +13,13 @@ Project
 ├── ScriptDocument (Project Script Master)
 │   └── ScriptVersion (Immutable Script Revision)
 │       ├── ScriptSegment (Acts, Scenes, Action, Dialogue, Headings)
-│       └── ScriptCharacterSuggestion (AI-assisted discovery candidate)
-│           └── ScriptCharacterMention (Traceable link to ScriptSegment)
+│       ├── ScriptCharacterSuggestion (AI-assisted discovery candidate)
+│       │   └── ScriptCharacterMention (Traceable link to ScriptSegment)
+│       └── CoveragePlan (Editorial Shot Planning Layer)
+│           ├── CoveragePlanSegmentLink (Traceable link to ScriptSegment range)
+│           ├── EditorialWarningWaiver (Director waiver for completeness warnings)
+│           └── ShotDefinition (Master, OTS, Close-up, Reaction, Insert, B-roll, Sound)
+│               └── ShotTaskLink (Traceable link to ProductionTask)
 ├── Character (Project-Scoped Character Entity)
 │   ├── CharacterIdentityVersion (Immutable facial & structural identity)
 │   ├── CharacterReferenceAsset (Turnaround sheets, model configs, reference frames)
@@ -62,12 +67,17 @@ Project
 - `CharacterTaskLink`: Association linking a `ProductionTask` to required character elements (`task`, `character`, `character_identity_version`, `character_look`, `character_scene_state`, `voice_profile`, `performance_profile`).
 - `CharacterRightsRecord`: Likeness & actor legal permissions (`character`, `licensor_name`, `actor_membership`, `likeness_authorized`, `voice_authorized`, `model_training_allowed`, `commercial_use_allowed`, `effective_date`, `expiration_date`, `document_key`).
 
-### 3. Script Import & Production Planning Workspace
+### 3. Script Import, Character Discovery & Shot Coverage Planning Workspace
 - `ScriptDocument`: Primary script master for a project (`project`, `title`, `description`, `created_by`, `created_at`).
 - `ScriptVersion`: Immutable versioned script import (`script_document`, `version_number`, `raw_text`, `parsed_at`, `created_by`, `created_at`).
 - `ScriptSegment`: Parsed text segment (`script_version`, `segment_number`, `segment_type`: `SCENE_HEADING`, `ACTION`, `DIALOGUE`, `PARENTHETICAL`, `TRANSITION`, `PARAGRAPH`, `text_content`, `scene`, `character`).
 - `ScriptCharacterSuggestion`: Deterministic character candidate derived from script text (`script_version`, `name`, `raw_name`, `status`: `SUGGESTED`, `CONFIRMED`, `MERGED`, `REJECTED`, `confirmed_character`, `occurrence_count`).
 - `ScriptCharacterMention`: Traceable link from a suggestion or canonical character to an exact `ScriptSegment` (`suggestion`, `segment`, `character`).
+- `CoveragePlan`: Governed shot coverage plan for a script passage (`project`, `script_version`, `title`, `editorial_strategy`, `status`: `DRAFT`, `APPROVED`, `STALE`, `RETIRED`, `created_by`, `approved_by`).
+- `CoveragePlanSegmentLink`: Link connecting a `CoveragePlan` to its source `ScriptSegment` range (`coverage_plan`, `start_segment`, `end_segment`, `text_snapshot`).
+- `ShotDefinition`: Individual camera shot definition within a coverage plan (`coverage_plan`, `shot_code`, `title`, `shot_category`: `MASTER`, `WIDE`, `MEDIUM`, `CLOSE_UP`, `EXTREME_CLOSE_UP`, `OVER_THE_SHOULDER`, `TWO_SHOT`, `REACTION`, `INSERT`, `CUTAWAY`, `ESTABLISHING`, `TRANSITION`, `B_ROLL`, `PICKUP`, `ALTERNATE_TAKE`, `EFFECTS_PLATE`, `CLEAN_PLATE`, `framing_notes`, `camera_movement`, `duration_target_seconds`, `sequence_order`, `is_required`, `status`, `character`, `created_by`).
+- `ShotTaskLink`: Traceable link connecting a `ShotDefinition` to a `ProductionTask` (`shot`, `task`, `created_at`).
+- `EditorialWarningWaiver`: Audit record of Director waiving an editorial completeness warning with rationale (`project`, `coverage_plan`, `warning_code`, `reason`, `waived_by`, `created_at`).
 - `TaskScriptLink`: Immutable traceability link linking a `ProductionTask` to its source script range (`task`, `script_version`, `start_segment`, `end_segment`, `segment_text_snapshot`, `created_at`).
 
 ### 4. Claims, Submissions & Immutability

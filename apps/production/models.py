@@ -570,8 +570,6 @@ class TaskScriptLink(models.Model):
         return f"{self.task.code} -> Script v{self.script_version.version_number} Segments #{self.start_segment.segment_number}-{self.end_segment.segment_number}"
 
 
-# CHARACTER DISCOVERY & MENTION ENTITIES (Issue #6)
-
 class ScriptCharacterSuggestion(models.Model):
     class Status(models.TextChoices):
         SUGGESTED = "suggested", "Suggested"
@@ -584,8 +582,8 @@ class ScriptCharacterSuggestion(models.Model):
         related_name="character_suggestions",
         on_delete=models.CASCADE,
     )
-    name = models.CharField(max_length=120)  # Normalized name
-    raw_name = models.CharField(max_length=120)  # Original name found
+    name = models.CharField(max_length=120)
+    raw_name = models.CharField(max_length=120)
     status = models.CharField(
         max_length=20,
         choices=Status.choices,
@@ -642,3 +640,188 @@ class ScriptCharacterMention(models.Model):
 
     def __str__(self):
         return f"Mention: {self.suggestion.name} at Segment #{self.segment.segment_number}"
+
+
+# SHOT PLANNING & COVERAGE PLAN ENTITIES (Issue #7)
+
+class CoveragePlan(models.Model):
+    class Status(models.TextChoices):
+        DRAFT = "draft", "Draft"
+        APPROVED = "approved", "Approved"
+        STALE = "stale", "Stale (Script Changed)"
+        RETIRED = "retired", "Retired"
+
+    project = models.ForeignKey(
+        "projects.Project",
+        related_name="coverage_plans",
+        on_delete=models.CASCADE,
+    )
+    script_version = models.ForeignKey(
+        ScriptVersion,
+        related_name="coverage_plans",
+        on_delete=models.PROTECT,
+    )
+    title = models.CharField(max_length=200)
+    editorial_strategy = models.TextField(blank=True)
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.DRAFT,
+    )
+    created_by = models.ForeignKey(
+        "projects.Membership",
+        related_name="created_coverage_plans",
+        on_delete=models.PROTECT,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"CoveragePlan: {self.title} [{self.status}]"
+
+
+class CoveragePlanSegmentLink(models.Model):
+    coverage_plan = models.ForeignKey(
+        CoveragePlan,
+        related_name="segment_links",
+        on_delete=models.CASCADE,
+    )
+    start_segment = models.ForeignKey(
+        ScriptSegment,
+        related_name="starting_coverage_links",
+        on_delete=models.PROTECT,
+    )
+    end_segment = models.ForeignKey(
+        ScriptSegment,
+        related_name="ending_coverage_links",
+        on_delete=models.PROTECT,
+    )
+    text_snapshot = models.TextField()
+
+    def clean(self):
+        if self.start_segment.script_version_id != self.coverage_plan.script_version_id or self.end_segment.script_version_id != self.coverage_plan.script_version_id:
+            raise ValidationError("Segments must belong to the coverage plan's ScriptVersion.")
+
+    def has_text_drifted(self) -> bool:
+        segments = ScriptSegment.objects.filter(
+            script_version=self.coverage_plan.script_version,
+            segment_number__gte=self.start_segment.segment_number,
+            segment_number__lte=self.end_segment.segment_number,
+        ).order_by("segment_number")
+        current_text = "\n".join(s.text_content for s in segments)
+        return current_text.strip() != self.text_snapshot.strip()
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        return super().save(*args, **kwargs)
+
+
+class ShotDefinition(models.Model):
+    class Category(models.TextChoices):
+        MASTER = "master", "Master Shot"
+        WIDE = "wide", "Wide Shot"
+        MEDIUM = "medium", "Medium Shot"
+        CLOSE_UP = "close_up", "Close-up"
+        EXTREME_CLOSE_UP = "extreme_close_up", "Extreme Close-up"
+        OTS = "ots", "Over-the-Shoulder"
+        TWO_SHOT = "two_shot", "Two-Shot"
+        REACTION = "reaction", "Reaction Shot"
+        INSERT = "insert", "Insert"
+        CUTAWAY = "cutaway", "Cutaway"
+        ESTABLISHING = "establishing", "Establishing Shot"
+        TRANSITION = "transition", "Transition Material"
+        B_ROLL = "b_roll", "B-Roll"
+        PICKUP = "pickup", "Pickup"
+        ALTERNATE_TAKE = "alternate_take", "Alternate Take"
+        EFFECTS_PLATE = "effects_plate", "VFX Plate"
+        CLEAN_PLATE = "clean_plate", "Clean Plate"
+
+    coverage_plan = models.ForeignKey(
+        CoveragePlan,
+        related_name="shots",
+        on_delete=models.CASCADE,
+    )
+    shot_code = models.CharField(max_length=40)
+    title = models.CharField(max_length=200)
+    shot_category = models.CharField(
+        max_length=30,
+        choices=Category.choices,
+        default=Category.MEDIUM,
+    )
+    editorial_purpose = models.TextField(blank=True)
+    framing_notes = models.TextField(blank=True)
+    camera_movement = models.CharField(max_length=100, blank=True)
+    lens_notes = models.CharField(max_length=100, blank=True)
+    duration_target_seconds = models.PositiveIntegerField(default=5)
+    sequence_order = models.PositiveIntegerField(default=1)
+    is_required = models.BooleanField(default=True)
+    character = models.ForeignKey(
+        "characters.Character",
+        null=True,
+        blank=True,
+        related_name="shots",
+        on_delete=models.SET_NULL,
+    )
+    created_by = models.ForeignKey(
+        "projects.Membership",
+        related_name="created_shots",
+        on_delete=models.PROTECT,
+    )
+
+    class Meta:
+        unique_together = ("coverage_plan", "shot_code")
+        ordering = ("sequence_order", "shot_code")
+
+    def __str__(self):
+        return f"Shot {self.shot_code}: {self.title} ({self.shot_category})"
+
+
+class ShotTaskLink(models.Model):
+    shot = models.ForeignKey(
+        ShotDefinition,
+        related_name="task_links",
+        on_delete=models.CASCADE,
+    )
+    task = models.ForeignKey(
+        ProductionTask,
+        related_name="shot_links",
+        on_delete=models.CASCADE,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("shot", "task")
+
+    def clean(self):
+        if self.shot.coverage_plan.project_id != self.task.project_id:
+            raise ValidationError("Shot and Task must belong to the same project.")
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        return super().save(*args, **kwargs)
+
+
+class EditorialWarningWaiver(models.Model):
+    project = models.ForeignKey(
+        "projects.Project",
+        related_name="editorial_waivers",
+        on_delete=models.CASCADE,
+    )
+    coverage_plan = models.ForeignKey(
+        CoveragePlan,
+        related_name="warning_waivers",
+        on_delete=models.CASCADE,
+    )
+    warning_code = models.CharField(max_length=80)
+    reason = models.TextField()
+    waived_by = models.ForeignKey(
+        "projects.Membership",
+        related_name="waived_editorial_warnings",
+        on_delete=models.PROTECT,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("coverage_plan", "warning_code")
+
+    def __str__(self):
+        return f"Waiver [{self.warning_code}] by {self.waived_by.credited_name}"

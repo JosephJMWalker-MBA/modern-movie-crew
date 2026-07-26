@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}Create Coverage Plan — {{ project.name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto bg-slate-800 border border-slate-700 rounded-lg p-6 font-sans">
+    <h2 class="text-xl font-bold text-white mb-1">Create Shot Coverage Plan</h2>
+    <p class="text-xs text-slate-400 mb-6">Define editorial coverage strategy and generate structured shot definitions from script passages.</p>
+
+    <form method="post" class="space-y-5">
+        {% csrf_token %}
+
+        <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">Coverage Plan Title</label>
+            <input type="text" name="title" placeholder="Scene 1 Control Room Coverage Plan" required class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-white text-xs">
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-xs font-medium text-slate-300 mb-1">Start Segment #</label>
+                <select name="start_segment_id" required class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-white text-xs font-mono">
+                    {% for seg in segments %}
+                        <option value="{{ seg.id }}">#{{ seg.segment_number }} [{{ seg.get_segment_type_display }}] {{ seg.text_content|truncatechars:40 }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-xs font-medium text-slate-300 mb-1">End Segment #</label>
+                <select name="end_segment_id" required class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-white text-xs font-mono">
+                    {% for seg in segments %}
+                        <option value="{{ seg.id }}" {% if forloop.last %}selected{% endif %}>#{{ seg.segment_number }} [{{ seg.get_segment_type_display }}] {{ seg.text_content|truncatechars:40 }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">Editorial Strategy & Director Notes</label>
+            <textarea name="editorial_strategy" rows="4" placeholder="High energy dialogue sequence. Master shot to establish spatial layout, tight OTS for intensity, close-up for key line, room tone audio." class="w-full bg-slate-900 border border-slate-700 rounded p-3 text-white text-xs leading-relaxed"></textarea>
+        </div>
+
+        <div class="p-4 bg-slate-900/60 border border-slate-700 rounded text-xs text-slate-400 space-y-1">
+            <div class="font-bold text-amber-400">Deterministic Coverage Template Assistant</div>
+            <div>The system will automatically analyze your segment selection and generate recommended coverage shots (Master, OTS, Close-up, Action Insert, B-roll/Room Tone).</div>
+        </div>
+
+        <button type="submit" class="w-full bg-amber-600 hover:bg-amber-500 text-white font-semibold py-2.5 rounded text-xs">
+            Generate Coverage Plan & Shots
+        </button>
+    </form>
+</div>
+{% endblock %}

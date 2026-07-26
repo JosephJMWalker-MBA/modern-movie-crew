@@ -7,6 +7,7 @@ from apps.characters import views as char_views
 from apps.core import views as core_views
 from apps.credits import views as credit_views
 from apps.production import views as prod_views
+from apps.production import views_coverage as cov_views
 from apps.production import views_script as script_views
 from apps.projects import views as proj_views
 from apps.projects import views_public as pub_views
@@ -51,11 +52,15 @@ urlpatterns = [
     path("projects/<slug:slug>/script/import/", script_views.script_import_view, name="script_import"),
     path("projects/<slug:slug>/script/create-task/", script_views.create_task_from_segment_view, name="create_task_from_segment"),
     path("projects/<slug:slug>/script/matrix/", script_views.production_matrix_view, name="production_matrix"),
+    # Coverage Planning & Shot Definitions (Issue #7)
+    path("projects/<slug:slug>/script/coverage/new/", cov_views.create_coverage_plan_view, name="create_coverage_plan"),
+    path("projects/<slug:slug>/script/coverage/<int:plan_id>/", cov_views.coverage_plan_detail_view, name="coverage_plan_detail"),
+    path("projects/<slug:slug>/script/shots/<int:shot_id>/create-task/", cov_views.create_task_from_shot_view, name="create_task_from_shot"),
+    path("projects/<slug:slug>/script/coverage/<int:plan_id>/waive/", cov_views.waive_warning_view, name="waive_warning"),
     # Characters
     path("projects/<slug:slug>/characters/", char_views.character_list_view, name="character_list"),
     path("projects/<slug:slug>/characters/new/", char_views.create_character_view, name="create_character"),
     path("projects/<slug:slug>/characters/<int:identity_id>/approve/", char_views.approve_identity_view, name="approve_character_identity"),
-    # Production Board & Tasks
     path("projects/<slug:slug>/board/", prod_views.project_board_view, name="project_board"),
     path("projects/<slug:slug>/tasks/new/", prod_views.create_task_view, name="create_task"),
     path("projects/<slug:slug>/tasks/<int:task_id>/", prod_views.task_detail_view, name="task_detail"),

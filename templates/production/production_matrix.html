@@ -5,14 +5,17 @@
 {% block content %}
 <div class="space-y-6">
     <!-- Header -->
-    <div class="flex items-center justify-between bg-slate-800 border border-slate-700 rounded-lg p-4">
+    <div class="flex items-center justify-between bg-slate-800 border border-slate-700 rounded-lg p-4 font-sans">
         <div>
             <h1 class="text-xl font-bold text-white">Production Planning Matrix</h1>
-            <p class="text-xs text-slate-400">Director’s big-picture production map across scenes and departments.</p>
+            <p class="text-xs text-slate-400">Director’s big-picture production map across scenes, departments, and shot coverage.</p>
         </div>
         <div class="flex items-center gap-3">
             <a href="{% url 'script_workspace' project.slug %}" class="bg-slate-700 hover:bg-slate-600 text-white font-semibold text-xs px-4 py-2 rounded">
                 Linear Script View
+            </a>
+            <a href="{% url 'create_coverage_plan' project.slug %}" class="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs px-4 py-2 rounded">
+                + Shot Coverage Plan
             </a>
             <a href="{% url 'create_task' project.slug %}" class="bg-amber-600 hover:bg-amber-500 text-white font-semibold text-xs px-4 py-2 rounded">
                 + Create Task
@@ -21,36 +24,44 @@
     </div>
 
     <!-- Summary Stats Bar -->
-    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-        <div class="bg-slate-800 border border-slate-700 p-4 rounded-lg">
-            <div class="text-xs text-slate-400">Script Coverage</div>
-            <div class="text-2xl font-bold text-amber-400 mt-1">{{ coverage_pct }}%</div>
+    <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 font-sans">
+        <div class="bg-slate-800 border border-slate-700 p-3 rounded-lg">
+            <div class="text-[11px] text-slate-400">Script Coverage</div>
+            <div class="text-xl font-bold text-amber-400 mt-1">{{ coverage_pct }}%</div>
         </div>
-        <div class="bg-slate-800 border border-slate-700 p-4 rounded-lg">
-            <div class="text-xs text-slate-400">Total Scenes</div>
-            <div class="text-2xl font-bold text-white mt-1">{{ total_scenes }}</div>
+        <div class="bg-slate-800 border border-slate-700 p-3 rounded-lg">
+            <div class="text-[11px] text-slate-400">Total Scenes</div>
+            <div class="text-xl font-bold text-white mt-1">{{ total_scenes }}</div>
         </div>
-        <div class="bg-slate-800 border border-slate-700 p-4 rounded-lg">
-            <div class="text-xs text-slate-400">Fully Planned</div>
-            <div class="text-2xl font-bold text-emerald-400 mt-1">{{ fully_planned_scenes }}</div>
+        <div class="bg-slate-800 border border-slate-700 p-3 rounded-lg">
+            <div class="text-[11px] text-slate-400">Total Shots</div>
+            <div class="text-xl font-bold text-emerald-400 mt-1">{{ total_shots_count }}</div>
         </div>
-        <div class="bg-slate-800 border border-slate-700 p-4 rounded-lg">
-            <div class="text-xs text-slate-400">Partially Planned</div>
-            <div class="text-2xl font-bold text-amber-300 mt-1">{{ partially_planned_scenes }}</div>
+        <div class="bg-slate-800 border border-slate-700 p-3 rounded-lg">
+            <div class="text-[11px] text-slate-400">Accepted Shots</div>
+            <div class="text-xl font-bold text-emerald-300 mt-1">{{ total_accepted_shots_count }}</div>
         </div>
-        <div class="bg-slate-800 border border-slate-700 p-4 rounded-lg">
-            <div class="text-xs text-slate-400">Unplanned Scenes</div>
-            <div class="text-2xl font-bold text-slate-400 mt-1">{{ unplanned_scenes }}</div>
+        <div class="bg-slate-800 border border-slate-700 p-3 rounded-lg">
+            <div class="text-[11px] text-slate-400">Fully Planned</div>
+            <div class="text-xl font-bold text-emerald-400 mt-1">{{ fully_planned_scenes }}</div>
         </div>
-        <div class="bg-slate-800 border border-slate-700 p-4 rounded-lg">
-            <div class="text-xs text-slate-400">Unresolved Characters</div>
-            <div class="text-2xl font-bold text-red-400 mt-1">{{ unresolved_character_mentions_count }}</div>
+        <div class="bg-slate-800 border border-slate-700 p-3 rounded-lg">
+            <div class="text-[11px] text-slate-400">Partially Planned</div>
+            <div class="text-xl font-bold text-amber-300 mt-1">{{ partially_planned_scenes }}</div>
+        </div>
+        <div class="bg-slate-800 border border-slate-700 p-3 rounded-lg">
+            <div class="text-[11px] text-slate-400">Unplanned Scenes</div>
+            <div class="text-xl font-bold text-slate-400 mt-1">{{ unplanned_scenes }}</div>
+        </div>
+        <div class="bg-slate-800 border border-slate-700 p-3 rounded-lg">
+            <div class="text-[11px] text-slate-400">Editorial Warnings</div>
+            <div class="text-xl font-bold text-red-400 mt-1">{{ total_editorial_warnings_count }}</div>
         </div>
     </div>
 
     <!-- Duplicate Task Warnings (if any) -->
     {% if duplicate_warnings %}
-        <div class="bg-amber-950/60 border border-amber-800 rounded-lg p-4 text-xs text-amber-200 space-y-2">
+        <div class="bg-amber-950/60 border border-amber-800 rounded-lg p-4 text-xs text-amber-200 space-y-2 font-sans">
             <h4 class="font-bold text-amber-400 text-sm">Potential Task Overlap / Duplicate Warnings</h4>
             {% for warn in duplicate_warnings %}
                 <div>&bull; {{ warn.message }}</div>
@@ -59,7 +70,7 @@
     {% endif %}
 
     <!-- Filter Bar -->
-    <div class="bg-slate-800 border border-slate-700 rounded-lg p-4">
+    <div class="bg-slate-800 border border-slate-700 rounded-lg p-4 font-sans">
         <form method="get" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
             <div>
                 <label class="block text-[11px] font-medium text-slate-400 mb-1">Department</label>
@@ -111,7 +122,7 @@
     </div>
 
     <!-- Main Production Matrix Table -->
-    <div class="bg-slate-800 border border-slate-700 rounded-lg overflow-x-auto">
+    <div class="bg-slate-800 border border-slate-700 rounded-lg overflow-x-auto font-sans">
         <table class="w-full text-left text-xs text-slate-300">
             <thead class="bg-slate-950 text-slate-400 font-semibold border-b border-slate-700">
                 <tr>
@@ -119,10 +130,11 @@
                     {% for dept in departments %}
                         <th class="p-3 text-center min-w-[130px] border-l border-slate-800">{{ dept.name }}</th>
                     {% endfor %}
+                    <th class="p-3 text-center w-28 border-l border-slate-800">Shots</th>
                     <th class="p-3 text-center w-28 border-l border-slate-800">Coverage</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-slate-700/60 font-sans">
+            <tbody class="divide-y divide-slate-700/60">
                 {% for row in matrix_rows %}
                     <tr class="hover:bg-slate-700/30">
                         <!-- Scene Label -->
@@ -155,6 +167,14 @@
                                 {% endif %}
                             </td>
                         {% endfor %}
+
+                        <!-- Scene Shots Count -->
+                        <td class="p-3 text-center border-l border-slate-800 font-semibold">
+                            <span class="text-slate-200 text-[11px]">{{ row.accepted_shots_count }}/{{ row.scene_shots_count }} Shots</span>
+                            {% if row.scene_warnings_count > 0 %}
+                                <div class="text-[9px] text-red-400 font-normal mt-0.5">{{ row.scene_warnings_count }} warning(s)</div>
+                            {% endif %}
+                        </td>
 
                         <!-- Scene Coverage Cell -->
                         <td class="p-3 text-center border-l border-slate-800 font-semibold">
