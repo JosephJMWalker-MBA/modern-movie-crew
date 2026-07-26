@@ -22,7 +22,11 @@ from services.invite_services import (
     revoke_project_invite,
 )
 from services.matching_services import find_eligible_open_tasks_for_contributor
-from services.project_services import add_crew_member_with_role, create_project_with_defaults
+from services.project_services import (
+    add_crew_member_with_role,
+    create_project_with_defaults,
+    seed_default_safe_roles_for_project,
+)
 
 CONTROLLED_ASSET_TYPES = {"video", "voice", "sound", "image"}
 CONTROLLED_TOOLS = {
@@ -105,7 +109,6 @@ def production_room_view(request, slug):
     project = get_object_or_404(Project, slug=slug)
     user_membership = get_object_or_404(Membership, project=project, user=request.user)
 
-    # Exclude cancelled & draft tasks from active progress calculations
     active_tasks = project.tasks.exclude(status__in=[ProductionTask.Status.CANCELLED, ProductionTask.Status.DRAFT])
     total_active = active_tasks.count()
     satisfied_tasks = active_tasks.filter(status=ProductionTask.Status.SATISFIED).count()
@@ -117,7 +120,6 @@ def production_room_view(request, slug):
     revision_requests = Submission.objects.filter(task__project=project, status=Submission.Status.REVISION_REQUESTED).select_related("task", "contributor").order_by("-created_at", "id")
     recent_canonicals = CanonicalSelection.objects.filter(task__project=project, retired_at__isnull=True).select_related("task", "submission_version", "selected_by").order_by("-selected_at", "id")[:5]
 
-    # Stable pagination for open tasks
     paginator = Paginator(open_tasks, 10)
     page_number = request.GET.get("page", 1)
     open_tasks_page = paginator.get_page(page_number)
@@ -146,6 +148,12 @@ def create_invite_view(request, slug):
     actor_membership = get_object_or_404(Membership, project=project, user=request.user)
 
     if request.method == "POST":
+        action = request.POST.get("action")
+        if action == "seed_roles":
+            seed_default_safe_roles_for_project(project=project)
+            messages.success(request, "Default contributor roles created successfully!")
+            return redirect("create_invite", slug=project.slug)
+
         role_id = request.POST.get("role_id")
         duration_days = int(request.POST.get("duration_days", 7))
         max_uses = int(request.POST.get("max_uses", 5))
@@ -215,7 +223,6 @@ def spare_gen_view(request, slug):
     asset_types = [asset_type] if asset_type in CONTROLLED_ASSET_TYPES else None
     department_id = int(dept_id) if dept_id and dept_id.isdigit() else None
 
-    # NON-MUTATING QUERY WITH STABLE ORDERING
     eligible_tasks = find_eligible_open_tasks_for_contributor(
         membership=user_membership,
         asset_types=asset_types,
@@ -256,7 +263,6 @@ def edit_profile_view(request, slug):
         asset_types_input = request.POST.get("supported_asset_types", "")
         portfolio_input = request.POST.get("portfolio_links", "")
 
-        # Handle validation
         if public_handle:
             if not re.match(r"^@?[a-zA-Z0-9_-]{2,50}$", public_handle):
                 messages.error(request, "Public handle must be 2-50 alphanumeric characters (underscores and dashes allowed).")
@@ -264,7 +270,6 @@ def edit_profile_view(request, slug):
             if not public_handle.startswith("@"):
                 public_handle = f"@{public_handle}"
 
-        # Portfolio URL validation
         portfolio_urls = [p.strip() for p in portfolio_input.split(",") if p.strip()]
         for url in portfolio_urls:
             try:
@@ -273,7 +278,6 @@ def edit_profile_view(request, slug):
                 messages.error(request, f"Invalid portfolio URL scheme or syntax: '{url}'. Links must use http:// or https://")
                 return render(request, "projects/edit_profile.html", {"project": project, "membership": user_membership})
 
-        # Controlled normalization
         raw_tools = [t.strip().lower() for t in tools_input.split(",") if t.strip()]
         normalized_tools = [t for t in raw_tools if t in CONTROLLED_TOOLS or len(t) <= 30]
 

@@ -15,6 +15,42 @@ from services.boundary_services import verify_director_authority, verify_members
 
 
 @transaction.atomic
+def seed_default_safe_roles_for_project(*, project: Project):
+    """Seeds default non-privileged contributor roles that pass is_safe_invite_role()."""
+    gen_dept = project.departments.filter(name="Generation Department").first()
+    art_dept = project.departments.filter(name="Art Department").first() or project.departments.first()
+
+    if not gen_dept and art_dept:
+        gen_dept = art_dept
+
+    if gen_dept:
+        ProductionRole.objects.get_or_create(
+            project=project,
+            name="Generation Contributor",
+            defaults={
+                "department": gen_dept,
+                "can_assign_tasks": False,
+                "can_approve_department_work": False,
+                "can_accept_final_assets": False,
+                "can_manage_credits": False,
+            },
+        )
+
+    if art_dept:
+        ProductionRole.objects.get_or_create(
+            project=project,
+            name="Art Contributor",
+            defaults={
+                "department": art_dept,
+                "can_assign_tasks": False,
+                "can_approve_department_work": False,
+                "can_accept_final_assets": False,
+                "can_manage_credits": False,
+            },
+        )
+
+
+@transaction.atomic
 def create_project_with_defaults(
     *, creator_user, name: str, synopsis: str = ""
 ) -> Project:
@@ -35,7 +71,7 @@ def create_project_with_defaults(
     costume_dept = Department.objects.create(project=project, name="Costume Department", sort_order=2)
     gen_dept = Department.objects.create(project=project, name="Generation Department", sort_order=3)
 
-    # Initial Director Role
+    # Initial Director Role (privileged)
     director_role = ProductionRole.objects.create(
         project=project,
         department=dir_dept,
@@ -45,6 +81,9 @@ def create_project_with_defaults(
         can_accept_final_assets=True,
         can_manage_credits=True,
     )
+
+    # Seed initial non-privileged contributor roles (safe for invites)
+    seed_default_safe_roles_for_project(project=project)
 
     membership = Membership.objects.create(
         project=project,

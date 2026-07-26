@@ -7,28 +7,44 @@
     <h2 class="text-xl font-bold text-white mb-2">Create Project Invite Link</h2>
     <p class="text-xs text-slate-400 mb-6">Generate an expiring, project-scoped invite token with a default role assignment.</p>
 
-    <form method="post" class="space-y-4">
-        {% csrf_token %}
-        <div>
-            <label class="block text-sm font-medium text-slate-300 mb-1">Default Contributor Role</label>
-            <select name="role_id" required class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-white">
-                {% for r in roles %}
-                    <option value="{{ r.id }}">{{ r.name }} ({{ r.department.name }})</option>
-                {% endfor %}
-            </select>
-            <p class="text-[10px] text-amber-500 mt-1">Note: Privileged director, producer, or asset acceptance roles cannot be assigned via invite links.</p>
+    {% if roles %}
+        <form method="post" class="space-y-4">
+            {% csrf_token %}
+            <div>
+                <label class="block text-sm font-medium text-slate-300 mb-1">Default Contributor Role</label>
+                <select name="role_id" required class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-white">
+                    {% for r in roles %}
+                        <option value="{{ r.id }}">{{ r.name }} ({{ r.department.name }})</option>
+                    {% endfor %}
+                </select>
+                <p class="text-[10px] text-amber-500 mt-1">Note: Privileged director, producer, or asset acceptance roles cannot be assigned via invite links.</p>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-300 mb-1">Expiration (Days)</label>
+                <input type="number" name="duration_days" value="7" min="1" max="30" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-white">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-300 mb-1">Max Uses</label>
+                <input type="number" name="max_uses" value="5" min="1" max="100" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-white">
+            </div>
+            <button type="submit" class="w-full bg-amber-600 hover:bg-amber-500 text-white font-semibold py-2 rounded">
+                Generate Expiring Invite Link
+            </button>
+        </form>
+    {% else %}
+        <div class="p-4 bg-slate-900 rounded border border-amber-800 text-center space-y-4">
+            <h3 class="font-bold text-amber-400 text-sm">No Safe Contributor Roles Available</h3>
+            <p class="text-xs text-slate-400">
+                This project does not currently have any non-privileged contributor roles. Privileged administrative or asset acceptance roles cannot be assigned via public invite links.
+            </p>
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="seed_roles">
+                <button type="submit" class="bg-amber-600 hover:bg-amber-500 text-white font-semibold text-xs px-4 py-2 rounded">
+                    Seed Default Contributor Roles
+                </button>
+            </form>
         </div>
-        <div>
-            <label class="block text-sm font-medium text-slate-300 mb-1">Expiration (Days)</label>
-            <input type="number" name="duration_days" value="7" min="1" max="30" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-white">
-        </div>
-        <div>
-            <label class="block text-sm font-medium text-slate-300 mb-1">Max Uses</label>
-            <input type="number" name="max_uses" value="5" min="1" max="100" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-white">
-        </div>
-        <button type="submit" class="w-full bg-amber-600 hover:bg-amber-500 text-white font-semibold py-2 rounded">
-            Generate Expiring Invite Link
-        </button>
-    </form>
+    {% endif %}
 </div>
 {% endblock %}
