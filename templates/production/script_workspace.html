@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% load script_tags %}
+
+{% block title %}Script Workspace — {{ project.name }}{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex items-center justify-between bg-slate-800 border border-slate-700 rounded-lg p-4">
+        <div>
+            <h1 class="text-xl font-bold text-white">Script Workspace</h1>
+            <p class="text-xs text-slate-400">
+                {% if script_doc %}
+                    {{ script_doc.title }} (v{{ latest_version.version_number }}) — {{ segments|length }} parsed segments
+                {% else %}
+                    No script imported yet.
+                {% endif %}
+            </p>
+        </div>
+        <a href="{% url 'script_import' project.slug %}" class="bg-amber-600 hover:bg-amber-500 text-white font-semibold text-xs px-4 py-2 rounded">
+            {% if script_doc %}Re-Import / Upload Revision{% else %}Import Script Document{% endif %}
+        </a>
+    </div>
+
+    {% if not latest_version %}
+        <div class="bg-slate-800 border border-slate-700 rounded-lg p-12 text-center space-y-4">
+            <h3 class="text-lg font-bold text-amber-400">Script-First Production Planning</h3>
+            <p class="text-xs text-slate-400 max-w-md mx-auto">
+                Import your project screenplay to review scenes paragraph-by-paragraph and create governed production tasks directly from specific script passages.
+            </p>
+            <a href="{% url 'script_import' project.slug %}" class="inline-block bg-amber-600 hover:bg-amber-500 text-white font-semibold text-xs px-6 py-2.5 rounded">
+                Import Script Now
+            </a>
+        </div>
+    {% else %}
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Left 2 Cols: Readable Screenplay / Manuscript -->
+            <div class="lg:col-span-2 bg-slate-800 border border-slate-700 rounded-lg p-6 space-y-4 font-mono text-sm">
+                {% for seg in segments %}
+                    <div class="p-3 rounded border {% if seg.segment_type == 'scene_heading' %}bg-amber-950/40 border-amber-800 text-amber-300 font-bold{% elif seg.segment_type == 'dialogue' %}bg-slate-900 border-slate-700 text-slate-200{% else %}bg-slate-900/60 border-slate-800 text-slate-300{% endif %}">
+                        <div class="flex items-center justify-between text-[11px] text-slate-500 mb-1 font-sans">
+                            <span>Segment #{{ seg.segment_number }} &bull; {{ seg.get_segment_type_display }}</span>
+                            {% if seg.scene %}
+                                <span>Scene {{ seg.scene.scene_number }}</span>
+                            {% endif %}
+                        </div>
+
+                        <div class="whitespace-pre-wrap leading-relaxed">{{ seg.text_content }}</div>
+
+                        <!-- Linked Task Badges & Coverage -->
+                        <div class="mt-2 flex flex-wrap gap-2 font-sans text-xs">
+                            {% for link_info in task_links_by_segment|get_item:seg.segment_number %}
+                                <a href="{% url 'task_detail' project.slug link_info.task.id %}" class="inline-flex items-center gap-1 bg-emerald-950 border border-emerald-700 text-emerald-300 text-[10px] px-2 py-0.5 rounded font-semibold hover:bg-emerald-900">
+                                    <span>Linked: {{ link_info.task.code }} [{{ link_info.task.status }}]</span>
+                                    {% if link_info.has_drifted %}
+                                        <span class="bg-amber-600 text-white px-1 rounded text-[9px]">Text Drifted</span>
+                                    {% endif %}
+                                </a>
+                            {% empty %}
+                                <span class="text-[10px] text-slate-500">Unplanned passage</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+
+            <!-- Right Col: Task Creation from Selection Panel -->
+            <div class="bg-slate-800 border border-slate-700 rounded-lg p-6 h-fit sticky top-6 font-sans">
+                <h3 class="font-bold text-white text-base mb-1">Create Task from Passage</h3>
+                <p class="text-xs text-slate-400 mb-4">Select start and end segment numbers to generate a linked production task.</p>
+
+                <form method="post" action="{% url 'create_task_from_segment' project.slug %}" class="space-y-4">
+                    {% csrf_token %}
+                    <input type="hidden" name="version_id" value="{{ latest_version.id }}">
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-300 mb-1">Start Segment #</label>
+                            <input type="number" name="start_segment_id" min="1" max="{{ segments|length }}" required class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-white text-xs">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-300 mb-1">End Segment #</label>
+                            <input type="number" name="end_segment_id" min="1" max="{{ segments|length }}" required class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-white text-xs">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1">Task Code</label>
+                        <input type="text" name="code" placeholder="TASK-SCRIPT-01" required class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-white text-xs">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1">Task Title</label>
+                        <input type="text" name="title" placeholder="Generate dialogue performance" required class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-white text-xs">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1">Task Type</label>
+                        <select name="task_type" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-white text-xs">
+                            <option value="video">Video Generation</option>
+                            <option value="voice">Voice / Audio</option>
+                            <option value="wardrobe">Costume / Wardrobe</option>
+                            <option value="concept">Art Concept</option>
+                            <option value="continuity">Continuity Check</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1">Link Character (Optional)</label>
+                        <select name="character_id" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-white text-xs">
+                            <option value="">-- None --</option>
+                            {% for c in characters %}
+                                <option value="{{ c.id }}">{{ c.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <button type="submit" class="w-full bg-amber-600 hover:bg-amber-500 text-white font-semibold py-2 rounded text-xs">
+                        Create Linked Production Task
+                    </button>
+                </form>
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

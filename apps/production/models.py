@@ -423,3 +423,149 @@ class CharacterTaskLink(models.Model):
 
     def __str__(self):
         return f"{self.task.code} -> Character: {self.character.name}"
+
+
+# SCRIPT IMPORT & SCRIPT-FIRST PRODUCTION PLANNING ENTITIES (Issue #3)
+
+class ScriptDocument(models.Model):
+    project = models.ForeignKey(
+        "projects.Project",
+        related_name="script_documents",
+        on_delete=models.CASCADE,
+    )
+    title = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    created_by = models.ForeignKey(
+        "projects.Membership",
+        related_name="created_script_documents",
+        on_delete=models.PROTECT,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Script: {self.title} ({self.project.name})"
+
+
+class ScriptVersion(models.Model):
+    script_document = models.ForeignKey(
+        ScriptDocument,
+        related_name="versions",
+        on_delete=models.CASCADE,
+    )
+    version_number = models.PositiveIntegerField()
+    raw_text = models.TextField()
+    parsed_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(
+        "projects.Membership",
+        related_name="created_script_versions",
+        on_delete=models.PROTECT,
+    )
+
+    class Meta:
+        unique_together = ("script_document", "version_number")
+        ordering = ("-version_number",)
+
+    def clean(self):
+        if self.pk:
+            raise ValidationError("ScriptVersion records are immutable once created.")
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise ValidationError("ScriptVersion records are immutable once created.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise RuntimeError("ScriptVersion records are immutable and cannot be deleted.")
+
+    def __str__(self):
+        return f"{self.script_document.title} v{self.version_number}"
+
+
+class ScriptSegment(models.Model):
+    class SegmentType(models.TextChoices):
+        SCENE_HEADING = "scene_heading", "Scene Heading"
+        ACTION = "action", "Action"
+        DIALOGUE = "dialogue", "Dialogue"
+        PARENTHETICAL = "parenthetical", "Parenthetical"
+        TRANSITION = "transition", "Transition"
+        PARAGRAPH = "paragraph", "Paragraph"
+
+    script_version = models.ForeignKey(
+        ScriptVersion,
+        related_name="segments",
+        on_delete=models.CASCADE,
+    )
+    segment_number = models.PositiveIntegerField()
+    segment_type = models.CharField(max_length=30, choices=SegmentType.choices)
+    text_content = models.TextField()
+    scene = models.ForeignKey(
+        Scene,
+        null=True,
+        blank=True,
+        related_name="script_segments",
+        on_delete=models.SET_NULL,
+    )
+    character = models.ForeignKey(
+        "characters.Character",
+        null=True,
+        blank=True,
+        related_name="script_segments",
+        on_delete=models.SET_NULL,
+    )
+
+    class Meta:
+        ordering = ("segment_number",)
+        unique_together = ("script_version", "segment_number")
+
+    def __str__(self):
+        return f"Segment #{self.segment_number} [{self.segment_type}]"
+
+
+class TaskScriptLink(models.Model):
+    task = models.ForeignKey(
+        ProductionTask,
+        related_name="script_links",
+        on_delete=models.CASCADE,
+    )
+    script_version = models.ForeignKey(
+        ScriptVersion,
+        related_name="task_links",
+        on_delete=models.PROTECT,
+    )
+    start_segment = models.ForeignKey(
+        ScriptSegment,
+        related_name="starting_task_links",
+        on_delete=models.PROTECT,
+    )
+    end_segment = models.ForeignKey(
+        ScriptSegment,
+        related_name="ending_task_links",
+        on_delete=models.PROTECT,
+    )
+    segment_text_snapshot = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def clean(self):
+        if self.start_segment.script_version_id != self.script_version_id or self.end_segment.script_version_id != self.script_version_id:
+            raise ValidationError("Start and End segments must belong to the linked ScriptVersion.")
+        if self.start_segment.segment_number > self.end_segment.segment_number:
+            raise ValidationError("start_segment cannot be after end_segment.")
+        if self.task.project_id != self.script_version.script_document.project_id:
+            raise ValidationError("Task and ScriptVersion must belong to the same project.")
+
+    def has_text_drifted(self) -> bool:
+        """Returns True if the current segment text content in the script version differs from the snapshot taken when the task was created."""
+        segments = ScriptSegment.objects.filter(
+            script_version=self.script_version,
+            segment_number__gte=self.start_segment.segment_number,
+            segment_number__lte=self.end_segment.segment_number,
+        ).order_by("segment_number")
+        current_text = "\n".join(s.text_content for s in segments)
+        return current_text.strip() != self.segment_text_snapshot.strip()
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        return super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.task.code} -> Script v{self.script_version.version_number} Segments #{self.start_segment.segment_number}-{self.end_segment.segment_number}"

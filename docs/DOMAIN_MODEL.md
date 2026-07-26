@@ -10,6 +10,9 @@ Project
 │   └── MembershipAgreement
 ├── ProductionRole
 ├── RoleAssignment
+├── ScriptDocument (Project Script Master)
+│   └── ScriptVersion (Immutable Script Revision)
+│       └── ScriptSegment (Acts, Scenes, Action, Dialogue, Headings)
 ├── Character (Project-Scoped Character Entity)
 │   ├── CharacterIdentityVersion (Immutable facial & structural identity)
 │   ├── CharacterReferenceAsset (Turnaround sheets, model configs, reference frames)
@@ -23,6 +26,7 @@ Project
 │   └── Sequence
 │       └── Scene
 │           └── ProductionTask
+│               ├── TaskScriptLink (Traceable link to ScriptVersion and ScriptSegment range)
 │               ├── CharacterTaskLink (Task link to CharacterIdentityVersion + Look + SceneState)
 │               ├── PacketSection (Story, Performance, Wardrobe, Set, Camera, Continuity, Generation, Prompt)
 │               ├── TaskResource (Approved Reference Attachments)
@@ -56,24 +60,30 @@ Project
 - `CharacterTaskLink`: Association linking a `ProductionTask` to required character elements (`task`, `character`, `character_identity_version`, `character_look`, `character_scene_state`, `voice_profile`, `performance_profile`).
 - `CharacterRightsRecord`: Likeness & actor legal permissions (`character`, `licensor_name`, `actor_membership`, `likeness_authorized`, `voice_authorized`, `model_training_allowed`, `commercial_use_allowed`, `effective_date`, `expiration_date`, `document_key`).
 
-### 3. Claims, Submissions & Immutability
+### 3. Script Import & Production Planning Workspace
+- `ScriptDocument`: Primary script master for a project (`project`, `title`, `description`, `created_by`, `created_at`).
+- `ScriptVersion`: Immutable versioned script import (`script_document`, `version_number`, `raw_text`, `parsed_at`, `created_by`, `created_at`).
+- `ScriptSegment`: Parsed text segment (`script_version`, `segment_number`, `segment_type`: `SCENE_HEADING`, `ACTION`, `DIALOGUE`, `PARENTHETICAL`, `TRANSITION`, `PARAGRAPH`, `text_content`, `scene`, `character`).
+- `TaskScriptLink`: Immutable traceability link linking a `ProductionTask` to its source script range (`task`, `script_version`, `start_segment`, `end_segment`, `segment_text_snapshot`, `created_at`).
+
+### 4. Claims, Submissions & Immutability
 - `TaskClaim`: Tracks contributor reservation (`task`, `membership`, `claimed_at`, `expires_at`, `status`: `ACTIVE`, `SUBMITTED`, `EXPIRED`, `RELEASED`).
 - `Submission`: A contributor's attempt at a task (`task`, `contributor`, `status`).
 - `SubmissionVersion`: Immutable file revision (`submission`, `version_number`, `storage_key`, `prompt_used`, `external_tool`, `seed`, `contributor_notes`).
 - `SubmissionAttestation`: Rights confirmation (`version`, `confirmed_authority`, `external_tool`, `commercial_use_allowed`, `likeness_authorized`, `source_asset_disclosure`, `attested_at`).
 
-### 4. Canonical Selection (Append-Only)
+### 5. Canonical Selection (Append-Only)
 - `CanonicalSelection`: `task`, `submission_version`, `selected_by`, `selected_at`, `supersedes`, `retired_at`, `reason`.
 
-### 5. Two-Layer Review Architecture
+### 6. Two-Layer Review Architecture
 - `DepartmentReview`: `version`, `reviewer_assignment`, `decision`: (`APPROVED`, `ISSUE_FOUND`, `REVISION_RECOMMENDED`, `NOT_APPLICABLE`), `notes`, `created_at`.
 - `DirectorReview`: `version`, `reviewer`, `decision`: (`ACCEPT`, `ACCEPT_AS_ALTERNATE`, `REQUEST_REVISION`, `REJECT`), `notes`, `created_at`.
 
-### 6. Legal & Rights Attestation
+### 7. Legal & Rights Attestation
 - `ProjectTermsVersion`: `project`, `version_number`, `terms_text`, `license_policy`, `credit_policy`, `effective_date`.
 - `MembershipAgreement`: `membership`, `terms_version`, `accepted_at`.
 
-### 7. Credits & Audit Trail
+### 8. Credits & Audit Trail
 - `CreditEntry`:
   - `project`, `contributor`
   - Historical snapshots: `credited_name`, `role_name`, `department_name`

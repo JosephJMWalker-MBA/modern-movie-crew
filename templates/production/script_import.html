@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}Import Project Script — {{ project.name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto bg-slate-800 border border-slate-700 rounded-lg p-6">
+    <h2 class="text-xl font-bold text-white mb-2">Import Project Screenplay</h2>
+    <p class="text-xs text-slate-400 mb-6">Import a master script to parse acts, scenes, and text blocks into navigable script segments for task planning.</p>
+
+    <form method="post" enctype="multipart/form-data" class="space-y-4">
+        {% csrf_token %}
+        <div>
+            <label class="block text-sm font-medium text-slate-300 mb-1">Script Title</label>
+            <input type="text" name="title" value="{{ project.name }} Screenplay" required class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-white text-sm">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-300 mb-1">Description (Optional)</label>
+            <input type="text" name="description" placeholder="Master draft v1" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-white text-xs">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-300 mb-1">Upload Script File (.txt or .md)</label>
+            <input type="file" name="script_file" accept=".txt,.md" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-slate-300 text-xs">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-slate-300 mb-1">Or Paste Screenplay Text</label>
+            <textarea name="raw_text" rows="12" placeholder="INT. COFFEE SHOP - DAY&#10;&#10;JOHN enters holding a neural briefcase." class="w-full bg-slate-900 border border-slate-700 rounded p-3 text-white font-mono text-xs leading-relaxed"></textarea>
+        </div>
+        <button type="submit" class="w-full bg-amber-600 hover:bg-amber-500 text-white font-semibold py-2.5 rounded text-sm">
+            Import & Parse Script
+        </button>
+    </form>
+</div>
+{% endblock %}

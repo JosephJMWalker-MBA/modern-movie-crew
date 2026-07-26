@@ -7,6 +7,7 @@ from apps.characters import views as char_views
 from apps.core import views as core_views
 from apps.credits import views as credit_views
 from apps.production import views as prod_views
+from apps.production import views_script as script_views
 from apps.projects import views as proj_views
 from apps.projects import views_public as pub_views
 from apps.submissions import views as sub_views
@@ -45,6 +46,10 @@ urlpatterns = [
     path("invites/<str:token_str>/accept/", proj_views.accept_invite_view, name="accept_invite"),
     path("projects/<slug:slug>/spare-gen/", proj_views.spare_gen_view, name="spare_gen"),
     path("projects/<slug:slug>/activity/", core_views.activity_feed_view, name="activity_feed"),
+    # Script Workspace & Import (Issue #3)
+    path("projects/<slug:slug>/script/", script_views.script_workspace_view, name="script_workspace"),
+    path("projects/<slug:slug>/script/import/", script_views.script_import_view, name="script_import"),
+    path("projects/<slug:slug>/script/create-task/", script_views.create_task_from_segment_view, name="create_task_from_segment"),
     # Characters
     path("projects/<slug:slug>/characters/", char_views.character_list_view, name="character_list"),
     path("projects/<slug:slug>/characters/new/", char_views.create_character_view, name="create_character"),

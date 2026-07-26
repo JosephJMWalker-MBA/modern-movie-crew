@@ -26,6 +26,7 @@
                     <div class="flex items-center space-x-3 text-sm font-medium text-slate-400">
                         <span class="text-slate-600">/</span>
                         <a href="{% url 'production_room' project.slug %}" class="hover:text-amber-400">Room</a>
+                        <a href="{% url 'script_workspace' project.slug %}" class="hover:text-amber-400 text-amber-400 font-semibold">Script</a>
                         <a href="{% url 'project_board' project.slug %}" class="hover:text-amber-400">Board</a>
                         <a href="{% url 'spare_gen' project.slug %}" class="hover:text-amber-400 text-emerald-400 font-semibold">Spare Gen</a>
                         <a href="{% url 'character_list' project.slug %}" class="hover:text-amber-400">Characters</a>
